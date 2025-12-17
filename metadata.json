@@ -1,0 +1,5 @@
+{
+  "name": "Professional Image Grid Maker",
+  "description": "A high-performance tool to create custom image grids with adjustable spacing, margins, and canvas dimensions, maintaining original aspect ratios and exporting at high resolution.",
+  "requestFramePermissions": []
+}
