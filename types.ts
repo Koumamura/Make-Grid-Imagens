@@ -15,4 +15,6 @@ export interface GridSettings {
   innerSpacing: number;
   outerMargin: number;
   backgroundColor: string;
+  isTransparent: boolean;
+  backgroundImageUrl?: string;
 }

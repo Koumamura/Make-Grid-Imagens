@@ -24,9 +24,31 @@ const GridPreview: React.FC<GridPreviewProps> = ({ images, settings }) => {
       canvas.width = settings.canvasWidth;
       canvas.height = settings.canvasHeight;
 
-      // 2. Background
-      ctx.fillStyle = settings.backgroundColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 2. Background Handling
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (!settings.isTransparent) {
+        ctx.fillStyle = settings.backgroundColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Draw background image if exists
+      if (settings.backgroundImageUrl) {
+        await new Promise<void>((resolve) => {
+          const bgImg = new Image();
+          bgImg.onload = () => {
+            // Draw background image using cover logic
+            const scale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height);
+            const w = bgImg.width * scale;
+            const h = bgImg.height * scale;
+            const x = (canvas.width - w) / 2;
+            const y = (canvas.height - h) / 2;
+            ctx.drawImage(bgImg, x, y, w, h);
+            resolve();
+          };
+          bgImg.src = settings.backgroundImageUrl!;
+        });
+      }
 
       if (images.length === 0) return;
 
@@ -37,11 +59,6 @@ const GridPreview: React.FC<GridPreviewProps> = ({ images, settings }) => {
 
       const availableWidth = canvas.width - (2 * margin) - ((cols - 1) * spacing);
       const cellWidth = availableWidth / cols;
-
-      // In this mode, we calculate cell heights dynamically or keep them uniform
-      // User requested "maintain aspect ratio", so we'll treat each row height
-      // based on the images in it. To keep a "grid", we usually use uniform cells.
-      // Let's implement uniform cells but fit images inside them preserving ratio.
       
       const rows = Math.ceil(images.length / cols);
       const availableHeight = canvas.height - (2 * margin) - ((rows - 1) * spacing);
@@ -84,15 +101,14 @@ const GridPreview: React.FC<GridPreviewProps> = ({ images, settings }) => {
     renderGrid();
   }, [images, settings]);
 
-  // Handle auto-scaling the preview to fit the container
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
-      const padding = 40;
+      const padding = 60;
       const scaleX = (clientWidth - padding) / settings.canvasWidth;
       const scaleY = (clientHeight - padding) / settings.canvasHeight;
-      setScaleFactor(Math.min(scaleX, scaleY, 1)); // Don't scale up past original size
+      setScaleFactor(Math.min(scaleX, scaleY, 1));
     };
 
     handleResize();
@@ -101,38 +117,39 @@ const GridPreview: React.FC<GridPreviewProps> = ({ images, settings }) => {
   }, [settings.canvasWidth, settings.canvasHeight]);
 
   return (
-    <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
+    <div ref={containerRef} className="w-full h-full flex flex-col items-center justify-center overflow-hidden">
       <div 
-        className="shadow-2xl bg-white border border-slate-300 relative"
+        className="shadow-[0_20px_50px_rgba(0,0,0,0.5)] bg-slate-900 border border-slate-800 relative group"
         style={{
           width: settings.canvasWidth * scaleFactor,
           height: settings.canvasHeight * scaleFactor,
-          transition: 'all 0.3s ease-out'
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          backgroundImage: settings.isTransparent ? 'linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%)' : 'none',
+          backgroundSize: '20px 20px',
+          backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
         }}
       >
         <canvas 
           id="grid-canvas"
           ref={canvasRef}
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'block'
-          }}
+          className="w-full h-full block"
         />
         
-        {/* Dimensions Badge */}
-        <div className="absolute -bottom-8 left-0 right-0 text-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            {settings.canvasWidth} x {settings.canvasHeight} px (Preview: {Math.round(scaleFactor * 100)}%)
+        {/* Info Overlay */}
+        <div className="absolute -bottom-10 left-0 right-0 text-center opacity-60 group-hover:opacity-100 transition-opacity">
+          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-slate-900/50 px-3 py-1 rounded-full">
+            {settings.canvasWidth}×{settings.canvasHeight} px • {Math.round(scaleFactor * 100)}% zoom
           </span>
         </div>
       </div>
 
       {images.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-300">
-          <i className="fas fa-layer-group text-8xl mb-6 opacity-20"></i>
-          <h2 className="text-xl font-semibold">Preview da Grid</h2>
-          <p className="text-sm">Adicione imagens para começar a criar seu mural</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-700">
+          <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center mb-6 shadow-xl border border-slate-800">
+            <i className="fas fa-layer-group text-4xl text-slate-600"></i>
+          </div>
+          <h2 className="text-xl font-bold text-slate-400">Canvas Vazio</h2>
+          <p className="text-sm text-slate-600 mt-1">Sua arte aparecerá aqui</p>
         </div>
       )}
     </div>
