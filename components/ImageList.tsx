@@ -11,53 +11,44 @@ interface ImageListProps {
 const ImageList: React.FC<ImageListProps> = ({ images, onRemove, onMove }) => {
   if (images.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-600 text-center opacity-50">
-        <i className="fas fa-layer-group text-5xl mb-4"></i>
-        <p className="text-sm font-medium">Sua galeria está vazia</p>
-        <p className="text-xs mt-1">Carregue imagens para começar</p>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-30">
+        <i className="fas fa-layer-group text-4xl mb-3"></i>
+        <p className="text-[10px] font-black uppercase tracking-widest">Galeria Vazia</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="flex-1 overflow-y-auto p-3 space-y-2">
       {images.map((img, index) => (
         <div 
           key={img.id} 
-          className="group flex items-center gap-3 bg-slate-800/50 border border-slate-800 p-2 rounded-lg hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-md"
+          className="group flex items-center gap-2 border p-1.5 rounded-lg transition-all shadow-sm"
+          style={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border)' }}
         >
-          <div className="w-12 h-12 flex-shrink-0 bg-slate-900 rounded-md overflow-hidden border border-slate-700">
+          <div className="w-10 h-10 flex-shrink-0 bg-black/10 rounded-md overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
             <img src={img.previewUrl} alt="Preview" className="w-full h-full object-cover" />
           </div>
           
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-200 truncate">{img.file.name}</p>
-            <p className="text-[10px] text-slate-500 font-mono">{img.width}x{img.height}px</p>
+            <p className="text-[10px] font-bold truncate leading-tight" style={{ color: 'var(--text-main)' }}>{img.file.name}</p>
+            <p className="text-[9px] font-mono opacity-50" style={{ color: 'var(--text-muted)' }}>{img.width}x{img.height}</p>
           </div>
 
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="flex flex-col">
-              <button 
-                onClick={() => onMove(index, 'up')}
-                disabled={index === 0}
-                className={`p-1 text-slate-500 hover:text-indigo-400 transition-colors ${index === 0 ? 'invisible' : ''}`}
-              >
-                <i className="fas fa-caret-up"></i>
-              </button>
-              <button 
-                onClick={() => onMove(index, 'down')}
-                disabled={index === images.length - 1}
-                className={`p-1 text-slate-500 hover:text-indigo-400 transition-colors ${index === images.length - 1 ? 'invisible' : ''}`}
-              >
-                <i className="fas fa-caret-down"></i>
-              </button>
-            </div>
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              onClick={() => onMove(index, 'up')}
+              className="p-1.5 transition-colors hover:text-theme-accent"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <i className="fas fa-chevron-up text-[9px]"></i>
+            </button>
             <button 
               onClick={() => onRemove(img.id)}
-              className="p-2 text-slate-500 hover:text-red-400 transition-colors"
-              title="Remover"
+              className="p-1.5 hover:text-red-500 transition-colors"
+              style={{ color: 'var(--text-muted)' }}
             >
-              <i className="fas fa-trash-alt text-xs"></i>
+              <i className="fas fa-trash-alt text-[9px]"></i>
             </button>
           </div>
         </div>

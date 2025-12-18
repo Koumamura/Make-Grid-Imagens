@@ -8,25 +8,15 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ itemCount, onClear }) => {
   return (
-    <div className="h-12 border-b border-slate-800 bg-slate-900/30 px-6 flex items-center justify-between z-10">
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Modo de Visualização</span>
-        <div className="flex gap-1 ml-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <div className="w-2 h-2 rounded-full bg-slate-700"></div>
-        </div>
-      </div>
-
+    <div className="h-10 border-b px-6 flex items-center justify-end z-10"
+         style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-4">
-        <span className="text-xs text-slate-500 font-medium">{itemCount} arquivos carregados</span>
         {itemCount > 0 && (
           <button 
             onClick={onClear}
-            className="flex items-center gap-2 text-[10px] font-bold text-slate-500 hover:text-red-400 transition-all uppercase tracking-widest"
-            title="Limpar tudo"
+            className="flex items-center gap-2 text-[9px] font-black hover:text-red-500 transition-all uppercase tracking-widest opacity-40 hover:opacity-100"
           >
-            <i className="fas fa-trash-alt"></i>
-            Limpar Canvas
+            <i className="fas fa-eraser"></i> Limpar Projeto
           </button>
         )}
       </div>

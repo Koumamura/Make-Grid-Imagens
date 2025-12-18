@@ -58,11 +58,7 @@ const GridTool: React.FC = () => {
           const segments = path.split('/').filter((s: string) => s.length > 0);
           return segments.length === 2;
         });
-        if (filesArray.length === 0) {
-          alert("Nenhuma imagem encontrada na raiz da pasta selecionada.");
-        }
       }
-      
       processFiles(filesArray);
     }
     if (e.target) e.target.value = '';
@@ -96,8 +92,8 @@ const GridTool: React.FC = () => {
 
   return (
     <div className="flex-1 flex overflow-hidden">
-      {/* Sidebar Left: Settings */}
-      <aside className="w-80 flex-shrink-0 border-r border-slate-800 bg-slate-900 p-6 overflow-y-auto">
+      <aside className="w-80 flex-shrink-0 border-r p-6 overflow-y-auto"
+             style={{ backgroundColor: 'var(--bg-side)', borderColor: 'var(--border)' }}>
         <Sidebar 
           settings={settings} 
           onSettingsChange={setSettings} 
@@ -107,19 +103,19 @@ const GridTool: React.FC = () => {
         />
       </aside>
 
-      {/* Center: Preview */}
-      <section className="flex-1 overflow-hidden relative flex flex-col bg-slate-950">
+      <section className="flex-1 overflow-hidden relative flex flex-col" style={{ backgroundColor: 'var(--bg-main)' }}>
         <Header itemCount={images.length} onClear={clearAll} />
         <div className="flex-1 relative flex items-center justify-center p-8">
           <GridPreview images={images} settings={settings} />
         </div>
       </section>
 
-      {/* Sidebar Right: Image List */}
-      <aside className="w-80 flex-shrink-0 border-l border-slate-800 bg-slate-900 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-slate-800 font-semibold text-slate-200 flex justify-between items-center bg-slate-900/50">
+      <aside className="w-80 flex-shrink-0 border-l overflow-hidden flex flex-col"
+             style={{ backgroundColor: 'var(--bg-side)', borderColor: 'var(--border)' }}>
+        <div className="p-3 border-b font-bold text-[10px] uppercase tracking-widest flex justify-between items-center"
+             style={{ backgroundColor: 'rgba(0,0,0,0.05)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           <span>Ordem das Imagens</span>
-          <span className="text-xs bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded-full border border-indigo-500/30">
+          <span className="px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)', color: 'var(--text-inv)' }}>
             {images.length} itens
           </span>
         </div>
@@ -130,20 +126,11 @@ const GridTool: React.FC = () => {
         />
       </aside>
 
-      {/* Hidden inputs */}
+      <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+      {/* Fix: Using spread to pass non-standard webkitdirectory attribute without TypeScript errors */}
       <input 
         type="file" 
-        multiple 
-        accept=".jpg,.jpeg,.png,.webp" 
-        className="hidden" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-      />
-      <input 
-        type="file" 
-        webkitdirectory="" 
-        // @ts-ignore
-        directory="" 
+        {...({ webkitdirectory: "" } as any)} 
         className="hidden" 
         ref={folderInputRef} 
         onChange={handleFileChange} 

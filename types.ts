@@ -6,6 +6,11 @@ export interface GridImage {
   width: number;
   height: number;
   aspectRatio: number;
+  // Propriedades para o Editor Interativo
+  x?: number;
+  y?: number;
+  scale?: number;
+  rotation?: number;
 }
 
 export interface GridSettings {
@@ -17,4 +22,16 @@ export interface GridSettings {
   backgroundColor: string;
   isTransparent: boolean;
   backgroundImageUrl?: string;
+}
+
+export interface FrameSettings {
+  borderWidth: number;
+  borderColor: string;
+  borderRadius: number;
+  padding: number;
+  shadow: number;
+  frameImageUrl?: string;
+  frameImageName?: string;
+  canvasWidth: number;
+  canvasHeight: number;
 }

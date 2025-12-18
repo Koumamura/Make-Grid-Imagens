@@ -1,0 +1,53 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    margin: 0;
+}
+
+.bg-theme-main { background-color: var(--bg-main); }
+.bg-theme-side { background-color: var(--bg-side); }
+.bg-theme-panel { background-color: var(--bg-panel); }
+.border-theme { border-color: var(--border); }
+.text-theme-main { color: var(--text-main); }
+.text-theme-muted { color: var(--text-muted); }
+.bg-theme-accent { background-color: var(--accent); }
+.text-theme-accent { color: var(--accent); }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+.theme-item-transition {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efeito Miau Tricolor */
+.miau-text {
+    background: linear-gradient(90deg, #f59e0b 0%, #171717 50%, #fef3c7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 900;
+}
+
+/* Suporte Chamfered da Logo (Quinas 45º) */
+.logo-support {
+    clip-path: polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0% calc(100% - 8px), 0% 8px);
+    background: rgba(128, 128, 128, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo-support:hover {
+    background: rgba(128, 128, 128, 0.75);
+    transform: translateY(-1px);
+}
