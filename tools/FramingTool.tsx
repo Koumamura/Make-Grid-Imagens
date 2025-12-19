@@ -46,6 +46,11 @@ const FramingTool: React.FC = () => {
     }
   };
 
+  const removeExtraLayer = (id: string) => {
+    setExtraLayers(prev => prev.filter(img => img.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  };
+
   const loadImage = (url: string): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
       const img = new Image(); img.crossOrigin = "anonymous";
@@ -117,7 +122,6 @@ const FramingTool: React.FC = () => {
       <section className="flex-1 flex flex-col overflow-hidden bg-theme-main relative">
         <Header itemCount={mainBatch.length + extraLayers.length} onClear={() => {setMainBatch([]); setExtraLayers([]); setBatchStates({});}} />
         
-        {/* BARRA DE PROPRIEDADES COMPACTA (DESIGN REINVENTADO) */}
         <div className="h-11 border-b border-theme flex items-center px-6 gap-6 bg-theme-side/40 backdrop-blur-sm z-30">
           <div className={`flex items-center gap-6 transition-all ${!selectedElement ? 'opacity-10 grayscale pointer-events-none' : 'opacity-100'}`}>
             <div className="flex items-center gap-2">
@@ -134,7 +138,7 @@ const FramingTool: React.FC = () => {
             </div>
             
             <div className="flex flex-col">
-              <span className="text-[7px] font-black uppercase opacity-30 leading-none">Posição</span>
+              <span className="text-[7px] font-black uppercase opacity-30 leading-none text-center">Posição</span>
               <span className="text-[8px] font-mono opacity-50">{Math.round(selectedElement?.x || 0)}, {Math.round(selectedElement?.y || 0)}</span>
             </div>
           </div>
@@ -161,23 +165,49 @@ const FramingTool: React.FC = () => {
       </section>
 
       <aside className="w-80 border-l bg-theme-side border-theme flex flex-col overflow-hidden">
-        <div className="flex-1 flex flex-col border-b border-theme overflow-hidden">
+        {/* FILA DO LOTE */}
+        <div className="h-1/2 flex flex-col border-b border-theme overflow-hidden">
           <div className="p-3 bg-black/5 flex justify-between items-center border-b border-theme">
-            <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Fila do Lote</span>
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Lote Principal</span>
             <span className="text-[9px] bg-theme-accent/20 text-theme-accent px-2 py-0.5 rounded">{mainBatch.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {mainBatch.map((img, idx) => (
-              <div key={img.id} onClick={() => { setCurrentIndex(idx); setSelectedId('main'); }} className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${currentIndex === idx ? 'border-theme-accent bg-theme-accent/10' : 'border-transparent opacity-60'}`}>
+              <div key={img.id} onClick={() => { setCurrentIndex(idx); setSelectedId('main'); }} className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${currentIndex === idx && selectedId === 'main' ? 'border-theme-accent bg-theme-accent/10' : 'border-transparent opacity-60'}`}>
                 <img src={img.previewUrl} className="w-7 h-7 rounded object-cover border border-theme" />
                 <span className="text-[9px] font-bold truncate flex-1">{img.file.name}</span>
               </div>
             ))}
           </div>
         </div>
+
+        {/* CAMADAS EXTRAS */}
+        <div className="h-1/2 flex flex-col overflow-hidden bg-black/5">
+          <div className="p-3 bg-black/5 flex justify-between items-center border-b border-theme">
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Camadas Extras</span>
+            <span className="text-[9px] bg-theme-accent/20 text-theme-accent px-2 py-0.5 rounded">{extraLayers.length}</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {extraLayers.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center opacity-20 text-center px-4">
+                <i className="fas fa-layer-group text-2xl mb-2"></i>
+                <p className="text-[8px] font-black uppercase">Nenhum elemento extra</p>
+              </div>
+            ) : (
+              extraLayers.map((img) => (
+                <div key={img.id} onClick={() => setSelectedId(img.id)} className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer group ${selectedId === img.id ? 'border-theme-accent bg-theme-accent/10' : 'border-transparent opacity-60'}`}>
+                  <img src={img.previewUrl} className="w-7 h-7 rounded object-cover border border-theme" />
+                  <span className="text-[9px] font-bold truncate flex-1">{img.file.name}</span>
+                  <button onClick={(e) => { e.stopPropagation(); removeExtraLayer(img.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all">
+                    <i className="fas fa-times text-[10px]"></i>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </aside>
 
-      {/* Fix: Added explicit casting to File[] for Array.from(e.target.files) to resolve 'unknown' type error in URL.createObjectURL */}
       <input type="file" multiple accept="image/*" className="hidden" ref={mainFileInputRef} onChange={(e) => {
         if (e.target.files) (Array.from(e.target.files) as File[]).forEach(file => {
           const img = new Image(); const url = URL.createObjectURL(file);
@@ -185,7 +215,6 @@ const FramingTool: React.FC = () => {
           img.src = url;
         });
       }} />
-      {/* Fix: Added explicit casting to File[] for Array.from(e.target.files) to resolve 'unknown' type error in URL.createObjectURL */}
       <input type="file" multiple accept="image/*" className="hidden" ref={extraFileInputRef} onChange={(e) => {
         if (e.target.files) (Array.from(e.target.files) as File[]).forEach(file => {
           const img = new Image(); const url = URL.createObjectURL(file);
