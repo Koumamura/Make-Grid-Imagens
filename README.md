@@ -3,15 +3,12 @@
 </div>
 
 # Run and deploy your AI Studio app
+Criado com auxilio da Ferramenta de IA do Google
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1hjdLqJtz_feqrG-RJiUOMduwnLCk6QiT
 
 ## Run Locally
 
 **Prerequisites:**  Node.js
-
 
 1. Install dependencies:
    `npm install`
