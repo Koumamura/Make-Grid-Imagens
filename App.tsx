@@ -5,11 +5,11 @@ import GridTool from './tools/GridTool';
 import ResizerTool from './tools/ResizerTool';
 import FramingTool from './tools/FramingTool';
 
-export type ToolType = 'grid' | 'framing' | 'resizer' | 'trim' | 'max-resize';
+export type ToolType = 'grid' | 'framing' | 'resizer' | 'max-resize';
 export type ThemeType = 'dark' | 'light' | 'pastel' | 'midnight';
 
 const App: React.FC = () => {
-  const [activeTool, setActiveTool] = useState<ToolType>('framing');
+  const [activeTool, setActiveTool] = useState<ToolType>('resizer');
   const [theme, setTheme] = useState<ThemeType>('midnight');
   const [showAbout, setShowAbout] = useState(false);
 

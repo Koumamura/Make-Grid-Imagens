@@ -25,43 +25,43 @@ const GridTool: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  // IMPORTAÇÃO SEQUENCIAL ROBUSTA
   const processFiles = async (files: File[]) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const newImagesPromises = files
-      .filter(file => validTypes.includes(file.type))
-      .map(file => {
-        return new Promise<GridImage>((resolve) => {
-          const img = new Image();
-          const url = URL.createObjectURL(file);
-          img.onload = () => {
-            resolve({
-              id: uuidv4(),
-              file,
-              previewUrl: url,
-              width: img.width,
-              height: img.height,
-              aspectRatio: img.width / img.height
-            });
-          };
-          img.src = url;
-        });
-      });
+    const filteredFiles = files.filter(file => validTypes.includes(file.type));
+    const newImages: GridImage[] = [];
 
-    const newImages = await Promise.all(newImagesPromises);
-    setImages(prev => [...prev, ...newImages]);
+    for (const file of filteredFiles) {
+      try {
+        const url = URL.createObjectURL(file);
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = reject;
+          i.src = url;
+        });
+
+        newImages.push({
+          id: uuidv4(),
+          file,
+          previewUrl: url,
+          width: img.width,
+          height: img.height,
+          aspectRatio: img.width / img.height
+        });
+      } catch (err) {
+        console.error("Erro ao processar imagem:", file.name);
+      }
+    }
+
+    if (newImages.length > 0) {
+      setImages(prev => [...prev, ...newImages]);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       let filesArray = Array.from(e.target.files) as File[];
-      
-      if (e.target === folderInputRef.current) {
-        filesArray = filesArray.filter(file => {
-          const path = ((file as any).webkitRelativePath || '').replace(/\\/g, '/');
-          const segments = path.split('/').filter((s: string) => s.length > 0);
-          return segments.length === 2;
-        });
-      }
       processFiles(filesArray);
     }
     if (e.target) e.target.value = '';
@@ -111,7 +111,7 @@ const GridTool: React.FC = () => {
   };
 
   const clearAll = () => {
-    if (window.confirm('Tem certeza que deseja remover todos os itens?')) {
+    if (window.confirm('Remover todos os itens da galeria?')) {
       images.forEach(img => {
         if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
       });

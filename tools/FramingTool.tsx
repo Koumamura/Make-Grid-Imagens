@@ -7,12 +7,7 @@ import InteractiveEditor from '../components/InteractiveEditor';
 import Header from '../components/Header';
 import { GridImage, FrameSettings } from '../types';
 
-interface BatchItemState {
-  x: number;
-  y: number;
-  scale: number;
-  rotation: number;
-}
+interface BatchItemState { x: number; y: number; scale: number; rotation: number; }
 
 const FramingTool: React.FC = () => {
   const [mainBatch, setMainBatch] = useState<GridImage[]>([]);
@@ -24,34 +19,18 @@ const FramingTool: React.FC = () => {
   const [zoom, setZoom] = useState(0.4); 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
-  
   const [downloadIndividual, setDownloadIndividual] = useState(true);
   const [downloadZip, setDownloadZip] = useState(false);
-  
-  const [settings, setSettings] = useState<FrameSettings>({
-    borderWidth: 20,
-    borderColor: '#ffffff',
-    borderRadius: 0,
-    padding: 0,
-    shadow: 10,
-    canvasWidth: 1080,
-    canvasHeight: 1080
-  });
+  const [settings, setSettings] = useState<FrameSettings>({ borderWidth: 20, borderColor: '#ffffff', borderRadius: 0, padding: 0, shadow: 10, canvasWidth: 1080, canvasHeight: 1080 });
 
   const mainFileInputRef = useRef<HTMLInputElement>(null);
   const extraFileInputRef = useRef<HTMLInputElement>(null);
   const frameInputRef = useRef<HTMLInputElement>(null);
 
   const currentMainImage = mainBatch[currentIndex];
-
   const currentTransform = useMemo(() => {
     if (!currentMainImage) return null;
-    return batchStates[currentMainImage.id] || {
-      x: (settings.canvasWidth / 2) - (currentMainImage.width * 0.1),
-      y: (settings.canvasHeight / 2) - (currentMainImage.height * 0.1),
-      scale: 0.2,
-      rotation: 0
-    };
+    return batchStates[currentMainImage.id] || { x: (settings.canvasWidth / 2) - (currentMainImage.width * 0.1), y: (settings.canvasHeight / 2) - (currentMainImage.height * 0.1), scale: 0.2, rotation: 0 };
   }, [currentMainImage, batchStates, settings.canvasWidth, settings.canvasHeight]);
 
   const selectedElement = useMemo(() => {
@@ -59,79 +38,9 @@ const FramingTool: React.FC = () => {
     return extraLayers.find(img => img.id === selectedId);
   }, [selectedId, currentMainImage, currentTransform, extraLayers]);
 
-  const handleMainFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files) as File[];
-      files.forEach(file => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          setMainBatch(prev => [...prev, {
-            id: uuidv4(),
-            file,
-            previewUrl: url,
-            width: img.width,
-            height: img.height,
-            aspectRatio: img.width / img.height
-          }]);
-        };
-        img.src = url;
-      });
-    }
-    if (e.target) e.target.value = '';
-  };
-
-  const handleExtraFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files) as File[];
-      files.forEach(file => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          setExtraLayers(prev => [...prev, {
-            id: uuidv4(),
-            file,
-            previewUrl: url,
-            width: img.width,
-            height: img.height,
-            aspectRatio: img.width / img.height,
-            x: 100,
-            y: 100,
-            scale: 0.15,
-            rotation: 0
-          }]);
-        };
-        img.src = url;
-      });
-    }
-    if (e.target) e.target.value = '';
-  };
-
-  const handleFrameFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        setSettings(prev => ({
-          ...prev,
-          frameImageUrl: url,
-          frameImageName: file.name,
-          canvasWidth: img.width,
-          canvasHeight: img.height
-        }));
-      };
-      img.src = url;
-    }
-    if (e.target) e.target.value = '';
-  };
-
   const updateTransform = (id: string, updates: Partial<BatchItemState | GridImage>) => {
     if (id === 'main' && currentMainImage) {
-      setBatchStates(prev => ({
-        ...prev,
-        [currentMainImage.id]: { ...currentTransform!, ...updates as any }
-      }));
+      setBatchStates(prev => ({ ...prev, [currentMainImage.id]: { ...currentTransform!, ...updates as any } }));
     } else {
       setExtraLayers(prev => prev.map(img => img.id === id ? { ...img, ...updates } : img));
     }
@@ -139,338 +48,158 @@ const FramingTool: React.FC = () => {
 
   const loadImage = (url: string): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error(`Falha ao carregar imagem: ${url}`));
+      const img = new Image(); img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img); img.onerror = () => reject(new Error("Erro"));
       img.src = url;
     });
   };
 
   const handleProcessAll = async () => {
     if (mainBatch.length === 0) return;
-    
-    setIsProcessing(true);
-    setProcessProgress(0);
-
-    // Canvas oculto para renderização em alta
+    setIsProcessing(true); setProcessProgress(0);
     const canvas = document.createElement('canvas');
-    canvas.width = settings.canvasWidth;
-    canvas.height = settings.canvasHeight;
+    canvas.width = settings.canvasWidth; canvas.height = settings.canvasHeight;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
-
     const zip = downloadZip ? new JSZip() : null;
-
     try {
-      // 1. Pré-carregar recursos globais (Extras e Moldura)
       const extraImgs = await Promise.all(extraLayers.map(l => loadImage(l.previewUrl)));
       let frameImg: HTMLImageElement | null = null;
-      if (settings.frameImageUrl) {
-        frameImg = await loadImage(settings.frameImageUrl);
-      }
+      if (settings.frameImageUrl) frameImg = await loadImage(settings.frameImageUrl);
 
-      // Referência do transform atual (o que o usuário está vendo na tela)
-      // Se outras imagens não foram editadas, elas usarão este posicionamento.
-      const fallbackTransform = currentTransform || {
-        x: (settings.canvasWidth / 2) - (currentMainImage.width * 0.1),
-        y: (settings.canvasHeight / 2) - (currentMainImage.height * 0.1),
-        scale: 0.2,
-        rotation: 0
-      };
+      const fallbackTransform = currentTransform || { x: (settings.canvasWidth / 2) - (currentMainImage.width * 0.1), y: (settings.canvasHeight / 2) - (currentMainImage.height * 0.1), scale: 0.2, rotation: 0 };
 
-      // 2. Loop principal de processamento
       for (let i = 0; i < mainBatch.length; i++) {
         setProcessProgress(i + 1);
-        const item = mainBatch[i];
-        
-        // Prioriza o estado específico do item, se não existir usa o fallback (template)
-        const transform = batchStates[item.id] || { ...fallbackTransform };
-
-        // Limpar canvas para o novo frame
+        const item = mainBatch[i]; const transform = batchStates[item.id] || { ...fallbackTransform };
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // A. Desenhar Imagem Principal do Lote
         const mainImgObj = await loadImage(item.previewUrl);
         ctx.save();
-        const drawW = item.width * transform.scale;
-        const drawH = item.height * transform.scale;
-        ctx.translate(transform.x + drawW / 2, transform.y + drawH / 2);
-        ctx.rotate((transform.rotation * Math.PI) / 180);
-        ctx.drawImage(mainImgObj, -drawW / 2, -drawH / 2, drawW, drawH);
-        ctx.restore();
+        const drawW = item.width * transform.scale, drawH = item.height * transform.scale;
+        ctx.translate(transform.x + drawW / 2, transform.y + drawH / 2); ctx.rotate((transform.rotation * Math.PI) / 180);
+        ctx.drawImage(mainImgObj, -drawW / 2, -drawH / 2, drawW, drawH); ctx.restore();
 
-        // B. Desenhar Camadas Extras
         extraLayers.forEach((layer, idx) => {
-          ctx.save();
-          const lW = layer.width * (layer.scale || 1);
-          const lH = layer.height * (layer.scale || 1);
-          ctx.translate((layer.x || 0) + lW / 2, (layer.y || 0) + lH / 2);
-          ctx.rotate(((layer.rotation || 0) * Math.PI) / 180);
-          ctx.drawImage(extraImgs[idx], -lW / 2, -lH / 2, lW, lH);
-          ctx.restore();
+          ctx.save(); const lW = layer.width * (layer.scale || 1), lH = layer.height * (layer.scale || 1);
+          ctx.translate((layer.x || 0) + lW / 2, (layer.y || 0) + lH / 2); ctx.rotate(((layer.rotation || 0) * Math.PI) / 180);
+          ctx.drawImage(extraImgs[idx], -lW / 2, -lH / 2, lW, lH); ctx.restore();
         });
 
-        // C. Desenhar Moldura ou Borda Simples
-        if (frameImg) {
-          ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-        } else {
-          ctx.strokeStyle = settings.borderColor;
-          ctx.lineWidth = settings.borderWidth;
-          if (settings.borderRadius > 0) {
-            ctx.beginPath();
-            // Fallback para roundRect se necessário
-            if (ctx.roundRect) {
-              ctx.roundRect(settings.borderWidth / 2, settings.borderWidth / 2, canvas.width - settings.borderWidth, canvas.height - settings.borderWidth, settings.borderRadius);
-            } else {
-              ctx.rect(settings.borderWidth / 2, settings.borderWidth / 2, canvas.width - settings.borderWidth, canvas.height - settings.borderWidth);
-            }
-            ctx.stroke();
-          } else {
-            ctx.strokeRect(settings.borderWidth / 2, settings.borderWidth / 2, canvas.width - settings.borderWidth, canvas.height - settings.borderWidth);
-          }
+        if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+        else {
+          ctx.strokeStyle = settings.borderColor; ctx.lineWidth = settings.borderWidth;
+          ctx.strokeRect(settings.borderWidth / 2, settings.borderWidth / 2, canvas.width - settings.borderWidth, canvas.height - settings.borderWidth);
         }
 
-        // D. Exportar Resultado
         const dataUrl = canvas.toDataURL('image/png', 1.0);
-        const cleanName = item.file.name.replace(/\.[^/.]+$/, "");
-        const fileName = `miau_${cleanName}.png`;
-
+        const fileName = `miau_${item.file.name.replace(/\.[^/.]+$/, "")}.png`;
         if (downloadIndividual) {
-          const link = document.createElement('a');
-          link.download = fileName;
-          link.href = dataUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          // Pequena pausa para evitar bloqueio de múltiplos downloads pelo navegador
+          const link = document.createElement('a'); link.download = fileName; link.href = dataUrl;
+          document.body.appendChild(link); link.click(); document.body.removeChild(link);
           await new Promise(r => setTimeout(r, 400));
         }
-
-        if (zip) {
-          const base64Data = dataUrl.split(',')[1];
-          zip.file(fileName, base64Data, { base64: true });
-        }
+        if (zip) zip.file(fileName, dataUrl.split(',')[1], { base64: true });
       }
-
-      // 3. Finalizar e baixar o ZIP se ativo
       if (zip) {
         const zipBlob = await zip.generateAsync({ type: "blob" });
-        const zipUrl = URL.createObjectURL(zipBlob);
-        const link = document.createElement('a');
-        link.href = zipUrl;
-        link.download = `lote_miau_tools_${Date.now()}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
+        const link = document.createElement('a'); link.href = URL.createObjectURL(zipBlob);
+        link.download = `miau_tools_${Date.now()}.zip`; link.click();
       }
-
-    } catch (err) {
-      console.error("Erro no processamento:", err);
-      alert("Ocorreu um erro ao processar o lote. Verifique se as imagens são válidas.");
-    } finally {
-      setIsProcessing(false);
-      setProcessProgress(0);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex < mainBatch.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-      setSelectedId('main');
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-      setSelectedId('main');
-    }
-  };
-
-  const clearAll = () => {
-    if (window.confirm('Deseja realmente limpar todo o projeto?')) {
-      mainBatch.forEach(img => URL.revokeObjectURL(img.previewUrl));
-      extraLayers.forEach(img => URL.revokeObjectURL(img.previewUrl));
-      setMainBatch([]);
-      setExtraLayers([]);
-      setBatchStates({});
-      setCurrentIndex(0);
-      setSelectedId(null);
-    }
+    } finally { setIsProcessing(false); setProcessProgress(0); }
   };
 
   return (
     <div className="flex-1 flex overflow-hidden bg-theme-main">
       <aside className="w-80 border-r flex flex-col bg-theme-side border-theme overflow-y-auto">
-        <SidebarFraming 
-          settings={settings} 
-          onSettingsChange={setSettings} 
-          onAddLote={() => mainFileInputRef.current?.click()}
-          onAddExtras={() => extraFileInputRef.current?.click()}
-          onAddFrame={() => frameInputRef.current?.click()}
-          autoSave={autoSave}
-          onAutoSaveChange={setAutoSave}
-          onProcessAll={handleProcessAll}
-          isProcessing={isProcessing}
-          progress={processProgress}
-          total={mainBatch.length}
-          exportOptions={{
-            downloadIndividual,
-            setDownloadIndividual,
-            downloadZip,
-            setDownloadZip
-          }}
-        />
+        <SidebarFraming settings={settings} onSettingsChange={setSettings} onAddLote={() => mainFileInputRef.current?.click()} onAddExtras={() => extraFileInputRef.current?.click()} onAddFrame={() => frameInputRef.current?.click()} autoSave={autoSave} onAutoSaveChange={setAutoSave} onProcessAll={handleProcessAll} isProcessing={isProcessing} progress={processProgress} total={mainBatch.length} exportOptions={{ downloadIndividual, setDownloadIndividual, downloadZip, setDownloadZip }} />
       </aside>
 
       <section className="flex-1 flex flex-col overflow-hidden bg-theme-main relative">
-        <Header itemCount={mainBatch.length + extraLayers.length} onClear={clearAll} />
+        <Header itemCount={mainBatch.length + extraLayers.length} onClear={() => {setMainBatch([]); setExtraLayers([]); setBatchStates({});}} />
         
-        <div className="h-14 border-b border-theme flex items-center px-6 gap-8 bg-theme-side/30 backdrop-blur-sm">
-          <div className={`flex items-center gap-8 transition-all duration-300 ${!selectedElement ? 'opacity-20 grayscale pointer-events-none' : 'opacity-100'}`}>
+        {/* BARRA DE PROPRIEDADES COMPACTA (DESIGN REINVENTADO) */}
+        <div className="h-11 border-b border-theme flex items-center px-6 gap-6 bg-theme-side/40 backdrop-blur-sm z-30">
+          <div className={`flex items-center gap-6 transition-all ${!selectedElement ? 'opacity-10 grayscale pointer-events-none' : 'opacity-100'}`}>
+            <div className="flex items-center gap-2">
+              <span className="text-[7px] font-black uppercase opacity-30">Escala</span>
+              <input type="range" min="0.01" max="3" step="0.01" value={selectedElement?.scale || 1} onChange={(e) => updateTransform(selectedId!, { scale: parseFloat(e.target.value) })} className="w-24 h-0.5 bg-theme-accent/20 rounded-lg appearance-none cursor-pointer accent-theme-accent" />
+              <span className="text-[9px] font-mono text-theme-accent font-black w-10 text-right">{Math.round((selectedElement?.scale || 1) * 100)}%</span>
+            </div>
+
+            <div className="h-4 w-[1px] bg-theme/50"></div>
+
+            <div className="flex gap-1">
+              <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) - 15 })} className="w-6 h-6 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-undo text-[8px]"></i></button>
+              <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) + 15 })} className="w-6 h-6 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-redo text-[8px]"></i></button>
+            </div>
+            
             <div className="flex flex-col">
-              <span className="text-[8px] font-black uppercase opacity-40">Posição Atual</span>
-              <div className="flex gap-3 font-mono text-[10px] mt-1">
-                <span className="opacity-40">X:</span> <span className="text-theme-accent font-bold">{Math.round(selectedElement?.x || 0)}</span>
-                <span className="opacity-40 ml-1">Y:</span> <span className="text-theme-accent font-bold">{Math.round(selectedElement?.y || 0)}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black uppercase opacity-40">Dimensão Real</span>
-              <div className="flex gap-2 font-mono text-[10px] mt-1">
-                <span className="opacity-40">W:</span> <span>{Math.round((selectedElement?.width || 0) * (selectedElement?.scale || 1))}px</span>
-              </div>
-            </div>
-
-            <div className="w-40 flex flex-col">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[8px] font-black uppercase opacity-40">Tamanho do Objeto</span>
-                <span className="text-[10px] font-mono text-theme-accent font-black">{Math.round((selectedElement?.scale || 1) * 100)}%</span>
-              </div>
-              <input 
-                type="range" min="0.01" max="4" step="0.01"
-                value={selectedElement?.scale || 1}
-                onChange={(e) => updateTransform(selectedId!, { scale: parseFloat(e.target.value) })}
-                className="w-full h-1 bg-theme-accent/20 rounded-lg appearance-none cursor-pointer accent-theme-accent"
-              />
-            </div>
-
-            <div className="flex gap-1.5 pl-4 border-l border-theme">
-              <button title="Girar -90º" onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) - 90 })} className="w-8 h-8 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-undo text-[10px]"></i></button>
-              <button title="Girar +90º" onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) + 90 })} className="w-8 h-8 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-redo text-[10px]"></i></button>
+              <span className="text-[7px] font-black uppercase opacity-30 leading-none">Posição</span>
+              <span className="text-[8px] font-mono opacity-50">{Math.round(selectedElement?.x || 0)}, {Math.round(selectedElement?.y || 0)}</span>
             </div>
           </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-hidden relative">
           <div className="flex-1 flex items-center justify-center w-full h-full overflow-auto scrollbar-hide">
-            <InteractiveEditor 
-              loteImages={extraLayers}
-              mainImage={currentMainImage ? { ...currentMainImage, ...currentTransform! } : null}
-              frameSettings={settings}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onUpdateImage={updateTransform}
-              zoom={zoom}
-            />
+            <InteractiveEditor loteImages={extraLayers} mainImage={currentMainImage ? { ...currentMainImage, ...currentTransform! } : null} frameSettings={settings} selectedId={selectedId} onSelect={setSelectedId} onUpdateImage={updateTransform} zoom={zoom} />
           </div>
           
-          <div className="mt-8 flex items-center gap-6 bg-theme-side/80 border border-theme py-1.5 px-6 rounded-full shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-theme-side/90 border border-theme py-1.5 px-6 rounded-full shadow-2xl backdrop-blur-md">
             <div className="flex items-center gap-3 pr-6 border-r border-theme/50">
               <i className="fas fa-search text-[10px] opacity-20"></i>
-              <input 
-                type="range" min="0.05" max="2" step="0.05"
-                value={zoom}
-                onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-24 h-1 bg-theme-accent/10 rounded-lg appearance-none cursor-pointer accent-theme-accent"
-              />
+              <input type="range" min="0.05" max="2" step="0.05" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} className="w-24 h-1 bg-theme-accent/10 rounded-lg appearance-none cursor-pointer accent-theme-accent" />
               <span className="text-[9px] font-mono opacity-40 min-w-[25px]">{Math.round(zoom * 100)}%</span>
             </div>
-
             <div className="flex items-center gap-4">
-              <button 
-                disabled={currentIndex === 0}
-                onClick={handlePrev}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-theme-accent/20 text-theme-main disabled:opacity-10 transition-all"
-              >
-                <i className="fas fa-chevron-left text-[9px]"></i>
-              </button>
-              
-              <div className="flex flex-col items-center min-w-[60px]">
-                <span className="text-[10px] font-mono font-black text-theme-accent">
-                  {mainBatch.length > 0 ? `${currentIndex + 1} / ${mainBatch.length}` : '0 / 0'}
-                </span>
-              </div>
-
-              <button 
-                disabled={currentIndex >= mainBatch.length - 1}
-                onClick={handleNext}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-theme-accent/20 text-theme-main disabled:opacity-10 transition-all"
-              >
-                <i className="fas fa-chevron-right text-[9px]"></i>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 pl-6 border-l border-theme/50">
-              <i className="fas fa-expand-alt text-[10px] opacity-20"></i>
-              <div className="flex items-baseline gap-1 font-mono text-[10px] opacity-50">
-                <span className="font-bold">{settings.canvasWidth}</span>
-                <span className="opacity-30 text-[8px]">×</span>
-                <span className="font-bold">{settings.canvasHeight}</span>
-                <span className="text-[8px] opacity-40 ml-0.5">px</span>
-              </div>
+              <button disabled={currentIndex === 0} onClick={() => { setCurrentIndex(prev => prev - 1); setSelectedId('main'); }} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-theme-accent/20 text-theme-main disabled:opacity-10 transition-all"><i className="fas fa-chevron-left text-[9px]"></i></button>
+              <span className="text-[10px] font-mono font-black text-theme-accent min-w-[60px] text-center">{mainBatch.length > 0 ? `${currentIndex + 1} / ${mainBatch.length}` : '0 / 0'}</span>
+              <button disabled={currentIndex >= mainBatch.length - 1} onClick={() => { setCurrentIndex(prev => prev + 1); setSelectedId('main'); }} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-theme-accent/20 text-theme-main disabled:opacity-10 transition-all"><i className="fas fa-chevron-right text-[9px]"></i></button>
             </div>
           </div>
         </div>
       </section>
 
-      <aside className="w-80 border-l bg-theme-side border-theme flex flex-col">
+      <aside className="w-80 border-l bg-theme-side border-theme flex flex-col overflow-hidden">
         <div className="flex-1 flex flex-col border-b border-theme overflow-hidden">
-          <div className="p-4 bg-black/5 flex justify-between items-center border-b border-theme">
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Fila do Lote</span>
-            <span className="text-[9px] font-mono bg-theme-accent/20 text-theme-accent px-2 py-0.5 rounded">{mainBatch.length}</span>
+          <div className="p-3 bg-black/5 flex justify-between items-center border-b border-theme">
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Fila do Lote</span>
+            <span className="text-[9px] bg-theme-accent/20 text-theme-accent px-2 py-0.5 rounded">{mainBatch.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {mainBatch.map((img, idx) => (
-              <div 
-                key={img.id}
-                onClick={() => { setCurrentIndex(idx); setSelectedId('main'); }}
-                className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${currentIndex === idx ? 'border-theme-accent bg-theme-accent/10 shadow-sm' : 'border-transparent hover:bg-black/5 opacity-60'}`}
-              >
-                <img src={img.previewUrl} className="w-8 h-8 rounded object-cover border border-theme" />
-                <span className="text-[10px] font-bold truncate flex-1">{img.file.name}</span>
-                {currentIndex === idx && <i className="fas fa-play text-theme-accent text-[8px]"></i>}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="h-1/3 flex flex-col overflow-hidden bg-black/5">
-          <div className="p-4 bg-black/5 flex justify-between items-center border-b border-theme">
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Extras</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-2">
-            {extraLayers.map(img => (
-              <div 
-                key={img.id}
-                onClick={() => setSelectedId(img.id)}
-                className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${selectedId === img.id ? 'border-theme-accent bg-theme-accent/5' : 'border-theme bg-theme-panel'}`}
-              >
-                <img src={img.previewUrl} className="w-8 h-8 rounded object-cover border border-theme" />
-                <span className="text-[10px] font-medium truncate flex-1">{img.file.name}</span>
-                <button onClick={(e) => { e.stopPropagation(); setExtraLayers(extraLayers.filter(l => l.id !== img.id)); if(selectedId === img.id) setSelectedId(null); }} className="text-theme-muted hover:text-red-500 transition-colors"><i className="fas fa-times text-[10px]"></i></button>
+              <div key={img.id} onClick={() => { setCurrentIndex(idx); setSelectedId('main'); }} className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${currentIndex === idx ? 'border-theme-accent bg-theme-accent/10' : 'border-transparent opacity-60'}`}>
+                <img src={img.previewUrl} className="w-7 h-7 rounded object-cover border border-theme" />
+                <span className="text-[9px] font-bold truncate flex-1">{img.file.name}</span>
               </div>
             ))}
           </div>
         </div>
       </aside>
 
-      <input type="file" multiple accept="image/*" className="hidden" ref={mainFileInputRef} onChange={handleMainFiles} />
-      <input type="file" multiple accept="image/*" className="hidden" ref={extraFileInputRef} onChange={handleExtraFiles} />
-      <input type="file" accept="image/png" className="hidden" ref={frameInputRef} onChange={handleFrameFile} />
+      {/* Fix: Added explicit casting to File[] for Array.from(e.target.files) to resolve 'unknown' type error in URL.createObjectURL */}
+      <input type="file" multiple accept="image/*" className="hidden" ref={mainFileInputRef} onChange={(e) => {
+        if (e.target.files) (Array.from(e.target.files) as File[]).forEach(file => {
+          const img = new Image(); const url = URL.createObjectURL(file);
+          img.onload = () => setMainBatch(prev => [...prev, { id: uuidv4(), file, previewUrl: url, width: img.width, height: img.height, aspectRatio: img.width / img.height }]);
+          img.src = url;
+        });
+      }} />
+      {/* Fix: Added explicit casting to File[] for Array.from(e.target.files) to resolve 'unknown' type error in URL.createObjectURL */}
+      <input type="file" multiple accept="image/*" className="hidden" ref={extraFileInputRef} onChange={(e) => {
+        if (e.target.files) (Array.from(e.target.files) as File[]).forEach(file => {
+          const img = new Image(); const url = URL.createObjectURL(file);
+          img.onload = () => setExtraLayers(prev => [...prev, { id: uuidv4(), file, previewUrl: url, width: img.width, height: img.height, aspectRatio: img.width / img.height, x: 100, y: 100, scale: 0.15, rotation: 0 }]);
+          img.src = url;
+        });
+      }} />
+      <input type="file" accept="image/png" className="hidden" ref={frameInputRef} onChange={(e) => {
+        if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0]; const url = URL.createObjectURL(file);
+          const img = new Image(); img.onload = () => setSettings(prev => ({ ...prev, frameImageUrl: url, frameImageName: file.name, canvasWidth: img.width, canvasHeight: img.height }));
+          img.src = url;
+        }
+      }} />
     </div>
   );
 };

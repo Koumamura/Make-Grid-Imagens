@@ -17,8 +17,7 @@ const TopNav: React.FC<TopNavProps> = ({ activeTool, onToolChange, currentTheme,
   const tools = [
     { id: 'grid', label: 'Grid Maker', icon: 'fa-th-large' },
     { id: 'framing', label: 'Bulk Framing', icon: 'fa-expand-arrows-alt' },
-    { id: 'resizer', label: 'Bulk Resizer', icon: 'fa-compress-arrows-alt' },
-    { id: 'trim', label: 'Trim Crop', icon: 'fa-crop-alt' },
+    { id: 'resizer', label: 'Master Resizer', icon: 'fa-expand-arrows-alt' },
     { id: 'max-resize', label: 'Max-Bound Resize', icon: 'fa-vector-square' },
   ];
 
