@@ -27,7 +27,7 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
   const [initialPos, setInitialPos] = useState({ x: 0, y: 0 });
 
   const handleMouseDown = (e: React.MouseEvent, id: string, x: number, y: number) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Impede que o clique chegue ao fundo (que desseleciona)
     onSelect(id);
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
@@ -73,23 +73,25 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
         backgroundImage: 'linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(-45deg, rgba(0,0,0,0.05) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.05) 75%), linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.05) 75%)',
         backgroundSize: '20px 20px'
       }}
-      onClick={() => onSelect(null)}
+      onMouseDown={() => onSelect(null)} // Clicar no fundo limpo desseleciona
     >
       {/* Camada 1: Imagem Principal do Lote */}
       {mainImage && (
         <div
-          className={`absolute cursor-move transition-shadow ${selectedId === 'main' ? 'ring-2 ring-theme-accent shadow-2xl' : ''}`}
+          className={`absolute cursor-move transition-shadow ${selectedId === 'main' ? 'ring-2 ring-theme-accent shadow-2xl z-30' : 'z-10'}`}
           style={{
             left: mainImage.x * zoom,
             top: mainImage.y * zoom,
             width: (mainImage.width * mainImage.scale) * zoom,
             transform: `rotate(${mainImage.rotation}deg)`,
-            zIndex: 10,
             pointerEvents: 'auto'
           }}
           onMouseDown={(e) => handleMouseDown(e, 'main', mainImage.x, mainImage.y)}
         >
           <img src={mainImage.previewUrl} className="w-full h-auto pointer-events-none select-none" />
+          {selectedId === 'main' && (
+             <div className="absolute inset-0 border border-theme-accent/50 pointer-events-none"></div>
+          )}
         </div>
       )}
 
@@ -97,18 +99,20 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
       {loteImages.map((img, idx) => (
         <div
           key={img.id}
-          className={`absolute cursor-move transition-shadow ${selectedId === img.id ? 'ring-2 ring-theme-accent shadow-2xl' : ''}`}
+          className={`absolute cursor-move transition-all ${selectedId === img.id ? 'ring-2 ring-theme-accent shadow-2xl z-40' : 'z-20'}`}
           style={{
             left: (img.x || 0) * zoom,
             top: (img.y || 0) * zoom,
             width: (img.width * (img.scale || 1)) * zoom,
             transform: `rotate(${img.rotation || 0}deg)`,
-            zIndex: 20 + idx,
             pointerEvents: 'auto'
           }}
           onMouseDown={(e) => handleMouseDown(e, img.id, img.x || 0, img.y || 0)}
         >
           <img src={img.previewUrl} className="w-full h-auto pointer-events-none select-none" />
+          {selectedId === img.id && (
+             <div className="absolute inset-0 border border-theme-accent/50 pointer-events-none"></div>
+          )}
         </div>
       ))}
 

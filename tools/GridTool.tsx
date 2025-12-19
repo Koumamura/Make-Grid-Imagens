@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import JSZip from 'jszip';
 import Sidebar from '../components/Sidebar';
 import GridPreview from '../components/GridPreview';
 import ImageList from '../components/ImageList';
@@ -9,6 +10,8 @@ import { GridImage, GridSettings } from '../types';
 
 const GridTool: React.FC = () => {
   const [images, setImages] = useState<GridImage[]>([]);
+  const [downloadIndividual, setDownloadIndividual] = useState(true);
+  const [downloadZip, setDownloadZip] = useState(false);
   const [settings, setSettings] = useState<GridSettings>({
     canvasWidth: 2048,
     canvasHeight: 2048,
@@ -81,6 +84,32 @@ const GridTool: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    const canvas = document.getElementById('grid-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const fileName = `grid_${Date.now()}.png`;
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+
+    if (downloadIndividual) {
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = dataUrl;
+      link.click();
+    }
+
+    if (downloadZip) {
+      const zip = new JSZip();
+      const base64Data = dataUrl.split(',')[1];
+      zip.file(fileName, base64Data, { base64: true });
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `grid_pack_${Date.now()}.zip`;
+      link.click();
+    }
+  };
+
   const clearAll = () => {
     if (window.confirm('Tem certeza que deseja remover todos os itens?')) {
       images.forEach(img => {
@@ -92,31 +121,35 @@ const GridTool: React.FC = () => {
 
   return (
     <div className="flex-1 flex overflow-hidden">
-      <aside className="w-80 flex-shrink-0 border-r p-6 overflow-y-auto"
-             style={{ backgroundColor: 'var(--bg-side)', borderColor: 'var(--border)' }}>
+      <aside className="w-80 flex-shrink-0 border-r overflow-y-auto bg-theme-side border-theme">
         <Sidebar 
           settings={settings} 
           onSettingsChange={setSettings} 
           onAddFile={() => fileInputRef.current?.click()}
           onAddFolder={() => folderInputRef.current?.click()}
           images={images}
+          exportOptions={{
+            downloadIndividual,
+            setDownloadIndividual,
+            downloadZip,
+            setDownloadZip
+          }}
+          onExport={handleExport}
         />
       </aside>
 
-      <section className="flex-1 overflow-hidden relative flex flex-col" style={{ backgroundColor: 'var(--bg-main)' }}>
+      <section className="flex-1 overflow-hidden relative flex flex-col bg-theme-main">
         <Header itemCount={images.length} onClear={clearAll} />
-        <div className="flex-1 relative flex items-center justify-center p-8">
+        <div className="flex-1 relative flex items-center justify-center p-8 bg-black/5">
           <GridPreview images={images} settings={settings} />
         </div>
       </section>
 
-      <aside className="w-80 flex-shrink-0 border-l overflow-hidden flex flex-col"
-             style={{ backgroundColor: 'var(--bg-side)', borderColor: 'var(--border)' }}>
-        <div className="p-3 border-b font-bold text-[10px] uppercase tracking-widest flex justify-between items-center"
-             style={{ backgroundColor: 'rgba(0,0,0,0.05)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-          <span>Ordem das Imagens</span>
-          <span className="px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)', color: 'var(--text-inv)' }}>
-            {images.length} itens
+      <aside className="w-80 flex-shrink-0 border-l overflow-hidden flex flex-col bg-theme-side border-theme">
+        <div className="p-4 border-b font-black text-[10px] uppercase tracking-widest flex justify-between items-center text-theme-muted bg-black/5">
+          <span>Galeria da Grid</span>
+          <span className="text-[9px] bg-theme-accent/20 text-theme-accent px-2 py-0.5 rounded">
+            {images.length}
           </span>
         </div>
         <ImageList 
@@ -127,7 +160,6 @@ const GridTool: React.FC = () => {
       </aside>
 
       <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-      {/* Fix: Using spread to pass non-standard webkitdirectory attribute without TypeScript errors */}
       <input 
         type="file" 
         {...({ webkitdirectory: "" } as any)} 

@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import JSZip from 'jszip';
 import SidebarFraming from '../components/SidebarFraming';
 import InteractiveEditor from '../components/InteractiveEditor';
 import Header from '../components/Header';
@@ -20,7 +21,12 @@ const FramingTool: React.FC = () => {
   const [autoSave, setAutoSave] = useState(true);
   const [extraLayers, setExtraLayers] = useState<GridImage[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(0.4); // Zoom da visualização (40% default)
+  const [zoom, setZoom] = useState(0.4); 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processProgress, setProcessProgress] = useState(0);
+  
+  const [downloadIndividual, setDownloadIndividual] = useState(true);
+  const [downloadZip, setDownloadZip] = useState(false);
   
   const [settings, setSettings] = useState<FrameSettings>({
     borderWidth: 20,
@@ -72,6 +78,7 @@ const FramingTool: React.FC = () => {
         img.src = url;
       });
     }
+    if (e.target) e.target.value = '';
   };
 
   const handleExtraFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,13 +104,13 @@ const FramingTool: React.FC = () => {
         img.src = url;
       });
     }
+    if (e.target) e.target.value = '';
   };
 
   const handleFrameFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const url = URL.createObjectURL(file);
-      
       const img = new Image();
       img.onload = () => {
         setSettings(prev => ({
@@ -130,6 +137,144 @@ const FramingTool: React.FC = () => {
     }
   };
 
+  const loadImage = (url: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Falha ao carregar imagem: ${url}`));
+      img.src = url;
+    });
+  };
+
+  const handleProcessAll = async () => {
+    if (mainBatch.length === 0) return;
+    
+    setIsProcessing(true);
+    setProcessProgress(0);
+
+    // Canvas oculto para renderização em alta
+    const canvas = document.createElement('canvas');
+    canvas.width = settings.canvasWidth;
+    canvas.height = settings.canvasHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    const zip = downloadZip ? new JSZip() : null;
+
+    try {
+      // 1. Pré-carregar recursos globais (Extras e Moldura)
+      const extraImgs = await Promise.all(extraLayers.map(l => loadImage(l.previewUrl)));
+      let frameImg: HTMLImageElement | null = null;
+      if (settings.frameImageUrl) {
+        frameImg = await loadImage(settings.frameImageUrl);
+      }
+
+      // Referência do transform atual (o que o usuário está vendo na tela)
+      // Se outras imagens não foram editadas, elas usarão este posicionamento.
+      const fallbackTransform = currentTransform || {
+        x: (settings.canvasWidth / 2) - (currentMainImage.width * 0.1),
+        y: (settings.canvasHeight / 2) - (currentMainImage.height * 0.1),
+        scale: 0.2,
+        rotation: 0
+      };
+
+      // 2. Loop principal de processamento
+      for (let i = 0; i < mainBatch.length; i++) {
+        setProcessProgress(i + 1);
+        const item = mainBatch[i];
+        
+        // Prioriza o estado específico do item, se não existir usa o fallback (template)
+        const transform = batchStates[item.id] || { ...fallbackTransform };
+
+        // Limpar canvas para o novo frame
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // A. Desenhar Imagem Principal do Lote
+        const mainImgObj = await loadImage(item.previewUrl);
+        ctx.save();
+        const drawW = item.width * transform.scale;
+        const drawH = item.height * transform.scale;
+        ctx.translate(transform.x + drawW / 2, transform.y + drawH / 2);
+        ctx.rotate((transform.rotation * Math.PI) / 180);
+        ctx.drawImage(mainImgObj, -drawW / 2, -drawH / 2, drawW, drawH);
+        ctx.restore();
+
+        // B. Desenhar Camadas Extras
+        extraLayers.forEach((layer, idx) => {
+          ctx.save();
+          const lW = layer.width * (layer.scale || 1);
+          const lH = layer.height * (layer.scale || 1);
+          ctx.translate((layer.x || 0) + lW / 2, (layer.y || 0) + lH / 2);
+          ctx.rotate(((layer.rotation || 0) * Math.PI) / 180);
+          ctx.drawImage(extraImgs[idx], -lW / 2, -lH / 2, lW, lH);
+          ctx.restore();
+        });
+
+        // C. Desenhar Moldura ou Borda Simples
+        if (frameImg) {
+          ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+        } else {
+          ctx.strokeStyle = settings.borderColor;
+          ctx.lineWidth = settings.borderWidth;
+          if (settings.borderRadius > 0) {
+            ctx.beginPath();
+            // Fallback para roundRect se necessário
+            if (ctx.roundRect) {
+              ctx.roundRect(settings.borderWidth / 2, settings.borderWidth / 2, canvas.width - settings.borderWidth, canvas.height - settings.borderWidth, settings.borderRadius);
+            } else {
+              ctx.rect(settings.borderWidth / 2, settings.borderWidth / 2, canvas.width - settings.borderWidth, canvas.height - settings.borderWidth);
+            }
+            ctx.stroke();
+          } else {
+            ctx.strokeRect(settings.borderWidth / 2, settings.borderWidth / 2, canvas.width - settings.borderWidth, canvas.height - settings.borderWidth);
+          }
+        }
+
+        // D. Exportar Resultado
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        const cleanName = item.file.name.replace(/\.[^/.]+$/, "");
+        const fileName = `miau_${cleanName}.png`;
+
+        if (downloadIndividual) {
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          // Pequena pausa para evitar bloqueio de múltiplos downloads pelo navegador
+          await new Promise(r => setTimeout(r, 400));
+        }
+
+        if (zip) {
+          const base64Data = dataUrl.split(',')[1];
+          zip.file(fileName, base64Data, { base64: true });
+        }
+      }
+
+      // 3. Finalizar e baixar o ZIP se ativo
+      if (zip) {
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const zipUrl = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = zipUrl;
+        link.download = `lote_miau_tools_${Date.now()}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
+      }
+
+    } catch (err) {
+      console.error("Erro no processamento:", err);
+      alert("Ocorreu um erro ao processar o lote. Verifique se as imagens são válidas.");
+    } finally {
+      setIsProcessing(false);
+      setProcessProgress(0);
+    }
+  };
+
   const handleNext = () => {
     if (currentIndex < mainBatch.length - 1) {
       setCurrentIndex(prev => prev + 1);
@@ -145,7 +290,9 @@ const FramingTool: React.FC = () => {
   };
 
   const clearAll = () => {
-    if (window.confirm('Limpar projeto?')) {
+    if (window.confirm('Deseja realmente limpar todo o projeto?')) {
+      mainBatch.forEach(img => URL.revokeObjectURL(img.previewUrl));
+      extraLayers.forEach(img => URL.revokeObjectURL(img.previewUrl));
       setMainBatch([]);
       setExtraLayers([]);
       setBatchStates({});
@@ -165,13 +312,22 @@ const FramingTool: React.FC = () => {
           onAddFrame={() => frameInputRef.current?.click()}
           autoSave={autoSave}
           onAutoSaveChange={setAutoSave}
+          onProcessAll={handleProcessAll}
+          isProcessing={isProcessing}
+          progress={processProgress}
+          total={mainBatch.length}
+          exportOptions={{
+            downloadIndividual,
+            setDownloadIndividual,
+            downloadZip,
+            setDownloadZip
+          }}
         />
       </aside>
 
       <section className="flex-1 flex flex-col overflow-hidden bg-theme-main relative">
         <Header itemCount={mainBatch.length + extraLayers.length} onClear={clearAll} />
         
-        {/* TOOLBAR DE TRANSFORMAÇÃO */}
         <div className="h-14 border-b border-theme flex items-center px-6 gap-8 bg-theme-side/30 backdrop-blur-sm">
           <div className={`flex items-center gap-8 transition-all duration-300 ${!selectedElement ? 'opacity-20 grayscale pointer-events-none' : 'opacity-100'}`}>
             <div className="flex flex-col">
@@ -183,7 +339,7 @@ const FramingTool: React.FC = () => {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-[8px] font-black uppercase opacity-40">Dimensão</span>
+              <span className="text-[8px] font-black uppercase opacity-40">Dimensão Real</span>
               <div className="flex gap-2 font-mono text-[10px] mt-1">
                 <span className="opacity-40">W:</span> <span>{Math.round((selectedElement?.width || 0) * (selectedElement?.scale || 1))}px</span>
               </div>
@@ -191,11 +347,11 @@ const FramingTool: React.FC = () => {
 
             <div className="w-40 flex flex-col">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[8px] font-black uppercase opacity-40">Escala do Elemento</span>
+                <span className="text-[8px] font-black uppercase opacity-40">Tamanho do Objeto</span>
                 <span className="text-[10px] font-mono text-theme-accent font-black">{Math.round((selectedElement?.scale || 1) * 100)}%</span>
               </div>
               <input 
-                type="range" min="0.01" max="3" step="0.01"
+                type="range" min="0.01" max="4" step="0.01"
                 value={selectedElement?.scale || 1}
                 onChange={(e) => updateTransform(selectedId!, { scale: parseFloat(e.target.value) })}
                 className="w-full h-1 bg-theme-accent/20 rounded-lg appearance-none cursor-pointer accent-theme-accent"
@@ -203,8 +359,8 @@ const FramingTool: React.FC = () => {
             </div>
 
             <div className="flex gap-1.5 pl-4 border-l border-theme">
-              <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) - 90 })} className="w-8 h-8 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-undo text-[10px]"></i></button>
-              <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) + 90 })} className="w-8 h-8 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-redo text-[10px]"></i></button>
+              <button title="Girar -90º" onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) - 90 })} className="w-8 h-8 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-undo text-[10px]"></i></button>
+              <button title="Girar +90º" onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) + 90 })} className="w-8 h-8 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-redo text-[10px]"></i></button>
             </div>
           </div>
         </div>
@@ -222,14 +378,11 @@ const FramingTool: React.FC = () => {
             />
           </div>
           
-          {/* BARRA DE CONTROLE UNIFICADA E DISCRETA */}
           <div className="mt-8 flex items-center gap-6 bg-theme-side/80 border border-theme py-1.5 px-6 rounded-full shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-500">
-            
-            {/* ZOOM DISCRETO */}
             <div className="flex items-center gap-3 pr-6 border-r border-theme/50">
               <i className="fas fa-search text-[10px] opacity-20"></i>
               <input 
-                type="range" min="0.05" max="1.5" step="0.05"
+                type="range" min="0.05" max="2" step="0.05"
                 value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
                 className="w-24 h-1 bg-theme-accent/10 rounded-lg appearance-none cursor-pointer accent-theme-accent"
@@ -237,7 +390,6 @@ const FramingTool: React.FC = () => {
               <span className="text-[9px] font-mono opacity-40 min-w-[25px]">{Math.round(zoom * 100)}%</span>
             </div>
 
-            {/* NAVEGAÇÃO CENTRAL */}
             <div className="flex items-center gap-4">
               <button 
                 disabled={currentIndex === 0}
@@ -262,7 +414,6 @@ const FramingTool: React.FC = () => {
               </button>
             </div>
 
-            {/* DIMENSÕES DISCRETAS */}
             <div className="flex items-center gap-3 pl-6 border-l border-theme/50">
               <i className="fas fa-expand-alt text-[10px] opacity-20"></i>
               <div className="flex items-baseline gap-1 font-mono text-[10px] opacity-50">
@@ -272,7 +423,6 @@ const FramingTool: React.FC = () => {
                 <span className="text-[8px] opacity-40 ml-0.5">px</span>
               </div>
             </div>
-
           </div>
         </div>
       </section>

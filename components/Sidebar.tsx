@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React from 'react';
 import { GridSettings, GridImage } from '../types';
 
 interface SidebarProps {
@@ -8,74 +8,78 @@ interface SidebarProps {
   onAddFile: () => void;
   onAddFolder: () => void;
   images: GridImage[];
+  exportOptions: {
+    downloadIndividual: boolean;
+    setDownloadIndividual: (v: boolean) => void;
+    downloadZip: boolean;
+    setDownloadZip: (v: boolean) => void;
+  };
+  onExport: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ settings, onSettingsChange, onAddFile, onAddFolder, images }) => {
-  const bgInputRef = useRef<HTMLInputElement>(null);
-
+const Sidebar: React.FC<SidebarProps> = ({ 
+  settings, 
+  onSettingsChange, 
+  onAddFile, 
+  onAddFolder, 
+  images,
+  exportOptions,
+  onExport
+}) => {
   const handleChange = (key: keyof GridSettings, value: any) => {
     onSettingsChange({ ...settings, [key]: value });
   };
 
-  const handleDownload = () => {
-    const canvas = document.getElementById('grid-canvas') as HTMLCanvasElement;
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = `grid-${new Date().getTime()}.png`;
-    link.href = canvas.toDataURL('image/png', 1.0);
-    link.click();
-  };
-
-  const inputStyle = {
-    backgroundColor: 'var(--bg-panel)',
-    borderColor: 'var(--border)',
-    color: 'var(--text-main)'
+  const selectMode = (mode: 'individual' | 'zip') => {
+    if (mode === 'individual') {
+      exportOptions.setDownloadIndividual(true);
+      exportOptions.setDownloadZip(false);
+    } else {
+      exportOptions.setDownloadIndividual(false);
+      exportOptions.setDownloadZip(true);
+    }
   };
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6 pb-8 h-full flex flex-col p-6">
       <div className="space-y-3">
         <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Conteúdo</h3>
         <button 
           onClick={onAddFile}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold text-xs transition-all active:scale-95 shadow-md hover:opacity-90 relative group overflow-hidden"
-          style={{ backgroundColor: 'var(--accent)', color: 'var(--text-inv)' }}
+          className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-black text-[10px] transition-all active:scale-95 shadow-lg hover:opacity-90 relative group overflow-hidden uppercase bg-theme-accent text-theme-inv"
         >
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <i className="fas fa-plus-circle z-10"></i> <span className="z-10">Arquivos</span>
+          <i className="fas fa-plus-circle z-10"></i> <span className="z-10">Adicionar Arquivos</span>
         </button>
         <button 
           onClick={onAddFolder}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold text-xs border transition-all active:scale-95 shadow-sm hover:bg-black/5 relative group overflow-hidden"
-          style={{ backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text-main)' }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold text-[9px] border transition-all active:scale-95 shadow-sm hover:bg-black/5 relative group overflow-hidden uppercase border-theme bg-theme-panel text-theme-main"
         >
-          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: 'var(--ui-hover)' }}></div>
+          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <i className="fas fa-folder z-10"></i> <span className="z-10">Importar Pasta</span>
         </button>
       </div>
 
-      <div className="space-y-5">
-        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Grid & Canvas</h3>
+      <div className="space-y-5 overflow-y-auto pr-1 flex-1">
+        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 border-b border-theme pb-2">Configuração da Grid</h3>
         
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-[9px] font-bold opacity-50 uppercase tracking-tighter">Largura (px)</label>
+            <label className="text-[8px] font-bold opacity-50 uppercase mb-1 block">Largura (px)</label>
             <input 
               type="number" 
               value={settings.canvasWidth} 
               onChange={(e) => handleChange('canvasWidth', parseInt(e.target.value) || 0)}
-              className="w-full border rounded-md p-2 text-xs outline-none transition-all focus:ring-2 focus:ring-[var(--accent)]"
-              style={inputStyle}
+              className="w-full bg-theme-panel border border-theme rounded p-2 text-[10px] outline-none font-mono"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[9px] font-bold opacity-50 uppercase tracking-tighter">Altura (px)</label>
+            <label className="text-[8px] font-bold opacity-50 uppercase mb-1 block">Altura (px)</label>
             <input 
               type="number" 
               value={settings.canvasHeight} 
               onChange={(e) => handleChange('canvasHeight', parseInt(e.target.value) || 0)}
-              className="w-full border rounded-md p-2 text-xs outline-none transition-all focus:ring-2 focus:ring-[var(--accent)]"
-              style={inputStyle}
+              className="w-full bg-theme-panel border border-theme rounded p-2 text-[10px] outline-none font-mono"
             />
           </div>
         </div>
@@ -88,36 +92,28 @@ const Sidebar: React.FC<SidebarProps> = ({ settings, onSettingsChange, onAddFile
           <div key={item.key} className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-[9px] font-bold opacity-60 uppercase tracking-wide">{item.label}</label>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--ui-selected)', color: 'var(--accent)' }}>{(settings as any)[item.key]}</span>
+              <span className="text-[9px] font-black text-theme-accent">{(settings as any)[item.key]}</span>
             </div>
             <input 
               type="range" 
               min={item.min} max={item.max} 
               value={(settings as any)[item.key]} 
               onChange={(e) => handleChange(item.key as any, parseInt(e.target.value))}
-              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer transition-all bg-black/10"
-              style={{ backgroundColor: 'var(--border)', accentColor: 'var(--accent)' }}
+              className="w-full h-1 bg-theme-panel rounded-lg appearance-none cursor-pointer"
+              style={{ accentColor: 'var(--accent)' }}
             />
           </div>
         ))}
 
-        <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
-          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">Aparência do Fundo</h3>
+        <div className="pt-4 border-t border-theme">
+          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">Aparência</h3>
           <div className="flex items-center gap-2">
              <button 
                 onClick={() => handleChange('isTransparent', !settings.isTransparent)}
-                className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md border text-[10px] font-black transition-all group relative overflow-hidden"
-                style={{ 
-                  backgroundColor: settings.isTransparent ? 'var(--accent)' : 'var(--bg-panel)',
-                  color: settings.isTransparent ? 'var(--text-inv)' : 'var(--text-muted)',
-                  borderColor: 'var(--border)'
-                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-[9px] font-black transition-all ${settings.isTransparent ? 'bg-theme-accent text-white border-theme-accent' : 'bg-theme-panel border-theme opacity-60'}`}
              >
-                {!settings.isTransparent && (
-                   <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: 'var(--ui-hover)' }}></div>
-                )}
-                <i className={`fas ${settings.isTransparent ? 'fa-check-circle' : 'fa-circle-notch'} z-10`}></i>
-                <span className="z-10">Transparência</span>
+                <i className={`fas ${settings.isTransparent ? 'fa-check-circle' : 'fa-circle-notch'}`}></i>
+                <span>Transparência</span>
              </button>
              <input 
                 type="color" 
@@ -126,22 +122,52 @@ const Sidebar: React.FC<SidebarProps> = ({ settings, onSettingsChange, onAddFile
                   handleChange('backgroundColor', e.target.value);
                   handleChange('isTransparent', false);
                 }}
-                className="w-9 h-9 bg-transparent rounded-lg cursor-pointer border-2 p-0.5 transition-transform active:scale-90"
-                style={{ borderColor: 'var(--border)' }}
+                className="w-9 h-9 bg-theme-panel rounded-lg cursor-pointer border border-theme p-0.5"
               />
+          </div>
+        </div>
+
+        <div className="pt-4 space-y-4 border-t border-theme">
+          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Modo de Exportação</h3>
+          
+          <div className="grid grid-cols-1 gap-2">
+            <button 
+              onClick={() => selectMode('individual')}
+              className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${exportOptions.downloadIndividual ? 'bg-theme-accent/10 border-theme-accent shadow-sm' : 'bg-theme-panel/30 border-theme opacity-60 hover:opacity-100'}`}
+            >
+              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${exportOptions.downloadIndividual ? 'border-theme-accent bg-theme-accent' : 'border-theme'}`}>
+                {exportOptions.downloadIndividual && <div className="w-1.5 h-1.5 rounded-full bg-white animate-in zoom-in duration-200"></div>}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase leading-tight">Separados</span>
+                <span className="text-[8px] opacity-50 uppercase">Arquivos separados  em multiplos downloads</span>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => selectMode('zip')}
+              className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${exportOptions.downloadZip ? 'bg-theme-accent/10 border-theme-accent shadow-sm' : 'bg-theme-panel/30 border-theme opacity-60 hover:opacity-100'}`}
+            >
+              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${exportOptions.downloadZip ? 'border-theme-accent bg-theme-accent' : 'border-theme'}`}>
+                {exportOptions.downloadZip && <div className="w-1.5 h-1.5 rounded-full bg-white animate-in zoom-in duration-200"></div>}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase leading-tight">Compactado (.ZIP)</span>
+                <span className="text-[8px] opacity-50 uppercase">PNGs dentro de um arquivo ZIP</span>
+              </div>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="pt-4">
+      <div className="mt-auto pt-4">
         <button 
           disabled={images.length === 0}
-          onClick={handleDownload}
-          className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-sm transition-all active:scale-95 shadow-xl disabled:opacity-30 disabled:grayscale relative group overflow-hidden"
-          style={{ backgroundColor: 'var(--accent)', color: 'var(--text-inv)' }}
+          onClick={onExport}
+          className="w-full flex items-center justify-center gap-3 py-4 px-4 rounded-xl font-black text-[11px] transition-all active:scale-95 shadow-xl disabled:opacity-30 uppercase tracking-widest bg-theme-accent text-theme-inv relative group overflow-hidden"
         >
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <i className="fas fa-download z-10"></i> <span className="z-10">EXPORTAR PROJETO</span>
+          <i className="fas fa-file-export z-10"></i> <span className="z-10">Salvar</span>
         </button>
       </div>
     </div>
