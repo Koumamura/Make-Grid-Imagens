@@ -41,31 +41,34 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-8 h-full flex flex-col p-6">
-      <div className="space-y-3">
-        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Conteúdo</h3>
-        <button 
-          onClick={onAddFile}
-          className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-black text-[10px] transition-all active:scale-95 shadow-lg hover:opacity-90 relative group overflow-hidden uppercase bg-theme-accent text-theme-inv"
-        >
-          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <i className="fas fa-plus-circle z-10"></i> <span className="z-10">Adicionar Arquivos</span>
-        </button>
-        <button 
-          onClick={onAddFolder}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold text-[9px] border transition-all active:scale-95 shadow-sm hover:bg-black/5 relative group overflow-hidden uppercase border-theme bg-theme-panel text-theme-main"
-        >
-          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <i className="fas fa-folder z-10"></i> <span className="z-10">Importar Pasta</span>
-        </button>
+    <div className="p-5 space-y-6 h-full overflow-y-auto scrollbar-hide flex flex-col">
+      {/* BOX: CONTEÚDO */}
+      <div className="p-4 rounded-2xl border border-theme bg-theme-panel/10 space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 border-b border-theme pb-2">Conteúdo</h3>
+        <div className="space-y-2">
+          <button 
+            onClick={onAddFile}
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-black text-[10px] transition-all active:scale-95 shadow-lg hover:opacity-90 relative group overflow-hidden uppercase bg-theme-accent text-theme-inv"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <i className="fas fa-plus-circle z-10"></i> <span className="z-10">Arquivos</span>
+          </button>
+          <button 
+            onClick={onAddFolder}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold text-[9px] border transition-all active:scale-95 shadow-sm hover:bg-black/10 relative group overflow-hidden uppercase border-theme bg-theme-panel text-theme-main"
+          >
+            <i className="fas fa-folder z-10"></i> <span className="z-10">Importar Pasta</span>
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-5 overflow-y-auto pr-1 flex-1">
+      {/* BOX: CONFIGURAÇÃO DA GRID */}
+      <div className="p-4 rounded-2xl border border-theme bg-theme-panel/10 space-y-5">
         <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 border-b border-theme pb-2">Configuração da Grid</h3>
         
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-[8px] font-bold opacity-50 uppercase mb-1 block">Largura (px)</label>
+            <label className="text-[8px] font-bold opacity-50 uppercase block">Largura (px)</label>
             <input 
               type="number" 
               value={settings.canvasWidth} 
@@ -74,7 +77,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[8px] font-bold opacity-50 uppercase mb-1 block">Altura (px)</label>
+            <label className="text-[8px] font-bold opacity-50 uppercase block">Altura (px)</label>
             <input 
               type="number" 
               value={settings.canvasHeight} 
@@ -104,67 +107,69 @@ const Sidebar: React.FC<SidebarProps> = ({
             />
           </div>
         ))}
+      </div>
 
-        <div className="pt-4 border-t border-theme">
-          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">Aparência</h3>
-          <div className="flex items-center gap-2">
-             <button 
-                onClick={() => handleChange('isTransparent', !settings.isTransparent)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-[9px] font-black transition-all ${settings.isTransparent ? 'bg-theme-accent text-white border-theme-accent' : 'bg-theme-panel border-theme opacity-60'}`}
-             >
-                <i className={`fas ${settings.isTransparent ? 'fa-check-circle' : 'fa-circle-notch'}`}></i>
-                <span>Transparência</span>
-             </button>
-             <input 
-                type="color" 
-                value={settings.backgroundColor} 
-                onChange={(e) => {
-                  handleChange('backgroundColor', e.target.value);
-                  handleChange('isTransparent', false);
-                }}
-                className="w-9 h-9 bg-theme-panel rounded-lg cursor-pointer border border-theme p-0.5"
-              />
-          </div>
-        </div>
-
-        <div className="pt-4 space-y-4 border-t border-theme">
-          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Modo de Exportação</h3>
-          
-          <div className="grid grid-cols-1 gap-2">
-            <button 
-              onClick={() => selectMode('individual')}
-              className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${exportOptions.downloadIndividual ? 'bg-theme-accent/10 border-theme-accent shadow-sm' : 'bg-theme-panel/30 border-theme opacity-60 hover:opacity-100'}`}
-            >
-              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${exportOptions.downloadIndividual ? 'border-theme-accent bg-theme-accent' : 'border-theme'}`}>
-                {exportOptions.downloadIndividual && <div className="w-1.5 h-1.5 rounded-full bg-white animate-in zoom-in duration-200"></div>}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase leading-tight">Separados</span>
-                <span className="text-[8px] opacity-50 uppercase">Arquivos separados  em multiplos downloads</span>
-              </div>
-            </button>
-
-            <button 
-              onClick={() => selectMode('zip')}
-              className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${exportOptions.downloadZip ? 'bg-theme-accent/10 border-theme-accent shadow-sm' : 'bg-theme-panel/30 border-theme opacity-60 hover:opacity-100'}`}
-            >
-              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${exportOptions.downloadZip ? 'border-theme-accent bg-theme-accent' : 'border-theme'}`}>
-                {exportOptions.downloadZip && <div className="w-1.5 h-1.5 rounded-full bg-white animate-in zoom-in duration-200"></div>}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase leading-tight">Compactado (.ZIP)</span>
-                <span className="text-[8px] opacity-50 uppercase">PNGs dentro de um arquivo ZIP</span>
-              </div>
-            </button>
-          </div>
+      {/* BOX: APARÊNCIA */}
+      <div className="p-4 rounded-2xl border border-theme bg-theme-panel/10 space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 border-b border-theme pb-2">Aparência</h3>
+        <div className="flex items-center gap-2">
+           <button 
+              onClick={() => handleChange('isTransparent', !settings.isTransparent)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-[9px] font-black transition-all ${settings.isTransparent ? 'bg-theme-accent text-white border-theme-accent' : 'bg-theme-panel border-theme opacity-60'}`}
+           >
+              <i className={`fas ${settings.isTransparent ? 'fa-check-circle' : 'fa-circle-notch'}`}></i>
+              <span>Transparência</span>
+           </button>
+           <input 
+              type="color" 
+              value={settings.backgroundColor} 
+              onChange={(e) => {
+                handleChange('backgroundColor', e.target.value);
+                handleChange('isTransparent', false);
+              }}
+              className="w-10 h-10 bg-theme-panel rounded-xl cursor-pointer border border-theme p-1 transition-transform active:scale-90"
+            />
         </div>
       </div>
 
+      {/* BOX: MODO DE EXPORTAÇÃO */}
+      <div className="p-4 rounded-2xl border border-theme bg-theme-panel/10 space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 border-b border-theme pb-2">Modo de Exportação</h3>
+        <div className="grid grid-cols-1 gap-2">
+          <button 
+            onClick={() => selectMode('individual')}
+            className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${exportOptions.downloadIndividual ? 'bg-theme-accent/10 border-theme-accent shadow-sm' : 'bg-theme-panel/30 border-theme opacity-60 hover:opacity-100'}`}
+          >
+            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${exportOptions.downloadIndividual ? 'border-theme-accent bg-theme-accent' : 'border-theme'}`}>
+              {exportOptions.downloadIndividual && <div className="w-1.5 h-1.5 rounded-full bg-white animate-in zoom-in duration-200"></div>}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase leading-tight">Arquivos Separados</span>
+              <span className="text-[8px] opacity-50 uppercase tracking-tighter">Download Direto</span>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => selectMode('zip')}
+            className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${exportOptions.downloadZip ? 'bg-theme-accent/10 border-theme-accent shadow-sm' : 'bg-theme-panel/30 border-theme opacity-60 hover:opacity-100'}`}
+          >
+            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${exportOptions.downloadZip ? 'border-theme-accent bg-theme-accent' : 'border-theme'}`}>
+              {exportOptions.downloadZip && <div className="w-1.5 h-1.5 rounded-full bg-white animate-in zoom-in duration-200"></div>}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase leading-tight">Compactado (.ZIP)</span>
+              <span className="text-[8px] opacity-50 uppercase tracking-tighter">Pacote Único</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* BOTÃO FINAL: SALVAR */}
       <div className="mt-auto pt-4">
         <button 
           disabled={images.length === 0}
           onClick={onExport}
-          className="w-full flex items-center justify-center gap-3 py-4 px-4 rounded-xl font-black text-[11px] transition-all active:scale-95 shadow-xl disabled:opacity-30 uppercase tracking-widest bg-theme-accent text-theme-inv relative group overflow-hidden"
+          className="w-full flex items-center justify-center gap-3 py-4 px-4 rounded-xl font-black text-[11px] transition-all active:scale-95 shadow-2xl disabled:opacity-30 uppercase tracking-widest bg-theme-accent text-theme-inv relative group overflow-hidden"
         >
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <i className="fas fa-file-export z-10"></i> <span className="z-10">Salvar</span>
