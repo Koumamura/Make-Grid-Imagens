@@ -198,43 +198,33 @@ const ResizerTool: React.FC = () => {
                 <canvas ref={previewCanvasRef} className="w-full h-full block" />
               </div>
 
-              {/* PAINEL DE METADATA (RESOLUÇÃO) REESTILIZADO */}
-              <div className="flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="flex items-center gap-3">
+              {/* PAINEL DE INFO ALINHADO AO ZOOM (BOTTOM-8) */}
+              <div className="absolute bottom-8 left-8 flex flex-col items-start gap-4 animate-in fade-in slide-in-from-left-4 duration-700 pointer-events-none z-50">
+                <div className="flex items-center gap-3 bg-theme-side/90 border border-theme/40 px-4 py-2 rounded-full shadow-2xl backdrop-blur-3xl">
                    {settings.useTrim && (
-                     <div className="flex items-center gap-1.5 bg-theme-accent text-white px-3 py-1.5 rounded-lg border border-white/10 shadow-lg shadow-theme-accent/20">
-                        <i className="fas fa-magic text-[10px]"></i>
-                        <span className="text-[10px] font-black uppercase tracking-wider">Auto Crop</span>
+                     <div className="flex items-center gap-1.5 bg-theme-accent text-white px-2 py-1 rounded-full border border-white/10">
+                        <i className="fas fa-magic text-[8px] animate-pulse"></i>
+                        <span className="text-[8px] font-black uppercase tracking-wider">Crop</span>
                      </div>
                    )}
                    
-                   <div className="flex items-center gap-4 bg-theme-panel/60 border border-theme px-5 py-2.5 rounded-2xl shadow-xl backdrop-blur-md">
-                      <div className="flex flex-col items-start leading-none gap-1">
-                        <span className="text-[7px] font-black uppercase opacity-30 tracking-widest">Original</span>
-                        <span className="text-[11px] font-mono font-bold opacity-60 tracking-tighter">
-                          {currentImg.width}<span className="opacity-30 mx-0.5">×</span>{currentImg.height}
+                   <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-start leading-none gap-0.5">
+                        <span className="text-[6px] font-black uppercase opacity-30 tracking-widest">In</span>
+                        <span className="text-[9px] font-mono font-bold opacity-60">
+                          {currentImg.width}x{currentImg.height}
                         </span>
                       </div>
 
-                      <div className="w-6 h-6 flex items-center justify-center bg-theme-accent/10 rounded-full">
-                        <i className="fas fa-long-arrow-alt-right text-theme-accent text-xs"></i>
-                      </div>
+                      <i className="fas fa-arrow-right text-theme-accent/30 text-[8px]"></i>
 
-                      <div className="flex flex-col items-start leading-none gap-1 text-right">
-                        <span className="text-[7px] font-black uppercase text-theme-accent tracking-widest">Resultado</span>
-                        <span className="text-[11px] font-mono font-black text-theme-accent tracking-tighter">
-                          {Math.round(previewSize.w)}<span className="opacity-40 mx-0.5">×</span>{Math.round(previewSize.h)}
+                      <div className="flex flex-col items-start leading-none gap-0.5">
+                        <span className="text-[6px] font-black uppercase text-theme-accent tracking-widest">Out</span>
+                        <span className="text-[10px] font-mono font-black text-theme-accent tracking-tighter">
+                          {Math.round(previewSize.w)}x{Math.round(previewSize.h)}
                         </span>
                       </div>
                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 opacity-30">
-                   <div className="h-[1px] w-4 bg-current"></div>
-                   <span className="text-[8px] font-black uppercase tracking-[0.2em]">
-                     {settings.useTrim ? 'Smart Processing' : 'Fixed Dimension'}
-                   </span>
-                   <div className="h-[1px] w-4 bg-current"></div>
                 </div>
               </div>
             </div>
@@ -247,7 +237,7 @@ const ResizerTool: React.FC = () => {
 
           {/* BARRA DE CONTROLE DE VIEW NO PREVIEW */}
           {currentImg && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-theme-side/90 border border-theme px-6 py-2 rounded-full shadow-2xl backdrop-blur-md">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-theme-side/90 border border-theme px-6 py-2 rounded-full shadow-2xl backdrop-blur-md z-50">
               <div className="flex items-center gap-3 pr-6 border-r border-theme/50">
                 <i className="fas fa-search text-[10px] opacity-30"></i>
                 <input type="range" min="0.05" max="2" step="0.05" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} className="w-24 h-1 bg-theme-accent/10 rounded-lg appearance-none cursor-pointer accent-theme-accent" />
@@ -270,7 +260,7 @@ const ResizerTool: React.FC = () => {
           <span className="text-[9px] bg-theme-accent/20 text-theme-accent px-2 py-0.5 rounded">{images.length}</span>
         </div>
         <div className="flex-1 overflow-y-auto">
-          <ImageList images={images} onRemove={(id) => setImages(prev => prev.filter(img => img.id !== id))} onMove={() => {}} />
+          <ImageList images={images} onRemove={(id) => setImages(prev => prev.filter(img => img.id !== id))} onMove={() => {}} onToggleActive={() => {}} />
         </div>
       </aside>
       <input type="file" multiple accept="image/png, image/jpeg, image/webp" className="hidden" ref={fileInputRef} onChange={handleFileChange} />

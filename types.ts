@@ -6,7 +6,9 @@ export interface GridImage {
   width: number;
   height: number;
   aspectRatio: number;
-  // Propriedades para o Editor Interativo
+  isActive?: boolean; // Novo: controla se está na grid ou nos removidos
+  visible?: boolean;
+  // Properties used in interactive editors like FramingTool
   x?: number;
   y?: number;
   scale?: number;
@@ -22,16 +24,20 @@ export interface GridSettings {
   backgroundColor: string;
   isTransparent: boolean;
   backgroundImageUrl?: string;
+  layoutMode?: 'grid' | 'auto';
+  itemScale?: number;
+  targetShape?: 'square' | 'portrait' | 'landscape';
 }
 
+// Fixed missing FrameSettings export
 export interface FrameSettings {
   borderWidth: number;
   borderColor: string;
   borderRadius: number;
   padding: number;
   shadow: number;
-  frameImageUrl?: string;
-  frameImageName?: string;
   canvasWidth: number;
   canvasHeight: number;
+  frameImageUrl?: string;
+  frameImageName?: string;
 }

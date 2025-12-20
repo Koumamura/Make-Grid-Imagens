@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 import SidebarFraming from '../components/SidebarFraming';
@@ -23,6 +23,9 @@ const FramingTool: React.FC = () => {
   const [downloadZip, setDownloadZip] = useState(false);
   const [settings, setSettings] = useState<FrameSettings>({ borderWidth: 20, borderColor: '#ffffff', borderRadius: 0, padding: 0, shadow: 10, canvasWidth: 1080, canvasHeight: 1080 });
 
+  const [isScaling, setIsScaling] = useState(false);
+  const scaleDragRef = useRef({ lastX: 0, currentScale: 1 });
+
   const mainFileInputRef = useRef<HTMLInputElement>(null);
   const extraFileInputRef = useRef<HTMLInputElement>(null);
   const frameInputRef = useRef<HTMLInputElement>(null);
@@ -38,13 +41,80 @@ const FramingTool: React.FC = () => {
     return extraLayers.find(img => img.id === selectedId);
   }, [selectedId, currentMainImage, currentTransform, extraLayers]);
 
-  const updateTransform = (id: string, updates: Partial<BatchItemState | GridImage>) => {
+  const updateTransform = useCallback((id: string, updates: Partial<BatchItemState | GridImage>) => {
     if (id === 'main' && currentMainImage) {
-      setBatchStates(prev => ({ ...prev, [currentMainImage.id]: { ...currentTransform!, ...updates as any } }));
+      setBatchStates(prev => ({ 
+        ...prev, 
+        [currentMainImage.id]: { 
+          ...(prev[currentMainImage.id] || { x: (settings.canvasWidth / 2) - (currentMainImage.width * 0.1), y: (settings.canvasHeight / 2) - (currentMainImage.height * 0.1), scale: 0.2, rotation: 0 }), 
+          ...updates as any 
+        } 
+      }));
     } else {
       setExtraLayers(prev => prev.map(img => img.id === id ? { ...img, ...updates } : img));
     }
+  }, [currentMainImage, settings]);
+
+  const toggleVisibility = (id: string) => {
+    if (id === 'main') {
+      // Por enquanto visibilidade para o principal não é estritamente necessária no lote, 
+      // mas podemos implementar se desejado.
+    } else {
+      setExtraLayers(prev => prev.map(img => img.id === id ? { ...img, visible: img.visible === false } : img));
+    }
   };
+
+  // Lógica de Escala Suave (Infinite Drag)
+  const onScaleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!selectedId || !selectedElement) return;
+    
+    // Ativa captura de pointer para o elemento
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    
+    setIsScaling(true);
+    scaleDragRef.current = {
+      lastX: e.clientX,
+      currentScale: selectedElement.scale || 1
+    };
+
+    // Bloqueia seleção e esconde cursor globalmente
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'none';
+    const style = document.createElement('style');
+    style.id = 'drag-cursor-none';
+    style.innerHTML = '*{ cursor: none !important; user-select: none !important; }';
+    document.head.appendChild(style);
+  };
+
+  useEffect(() => {
+    if (!isScaling) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - scaleDragRef.current.lastX;
+      scaleDragRef.current.lastX = e.clientX;
+      
+      const sensitivity = 0.0035; 
+      const newScale = Math.max(0.01, Math.min(10, scaleDragRef.current.currentScale + (deltaX * sensitivity)));
+      scaleDragRef.current.currentScale = newScale;
+      
+      updateTransform(selectedId!, { scale: newScale });
+    };
+
+    const handleMouseUp = () => {
+      setIsScaling(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = 'default';
+      document.getElementById('drag-cursor-none')?.remove();
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isScaling, selectedId, updateTransform]);
 
   const removeExtraLayer = (id: string) => {
     setExtraLayers(prev => prev.filter(img => img.id !== id));
@@ -78,6 +148,7 @@ const FramingTool: React.FC = () => {
         setProcessProgress(i + 1);
         const item = mainBatch[i]; const transform = batchStates[item.id] || { ...fallbackTransform };
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
         const mainImgObj = await loadImage(item.previewUrl);
         ctx.save();
         const drawW = item.width * transform.scale, drawH = item.height * transform.scale;
@@ -85,6 +156,7 @@ const FramingTool: React.FC = () => {
         ctx.drawImage(mainImgObj, -drawW / 2, -drawH / 2, drawW, drawH); ctx.restore();
 
         extraLayers.forEach((layer, idx) => {
+          if (layer.visible === false) return; // Não processa se invisível
           ctx.save(); const lW = layer.width * (layer.scale || 1), lH = layer.height * (layer.scale || 1);
           ctx.translate((layer.x || 0) + lW / 2, (layer.y || 0) + lH / 2); ctx.rotate(((layer.rotation || 0) * Math.PI) / 180);
           ctx.drawImage(extraImgs[idx], -lW / 2, -lH / 2, lW, lH); ctx.restore();
@@ -122,26 +194,51 @@ const FramingTool: React.FC = () => {
       <section className="flex-1 flex flex-col overflow-hidden bg-theme-main relative">
         <Header itemCount={mainBatch.length + extraLayers.length} onClear={() => {setMainBatch([]); setExtraLayers([]); setBatchStates({});}} />
         
-        <div className="h-11 border-b border-theme flex items-center px-6 gap-6 bg-theme-side/40 backdrop-blur-sm z-30">
-          <div className={`flex items-center gap-6 transition-all ${!selectedElement ? 'opacity-10 grayscale pointer-events-none' : 'opacity-100'}`}>
-            <div className="flex items-center gap-2">
-              <span className="text-[7px] font-black uppercase opacity-30">Escala</span>
-              <input type="range" min="0.01" max="3" step="0.01" value={selectedElement?.scale || 1} onChange={(e) => updateTransform(selectedId!, { scale: parseFloat(e.target.value) })} className="w-24 h-0.5 bg-theme-accent/20 rounded-lg appearance-none cursor-pointer accent-theme-accent" />
-              <span className="text-[9px] font-mono text-theme-accent font-black w-10 text-right">{Math.round((selectedElement?.scale || 1) * 100)}%</span>
+        {/* BARRA DE TRANSFORMAÇÃO DINÂMICA */}
+        <div className={`h-14 border-b flex items-center px-6 gap-8 backdrop-blur-xl z-30 transition-all duration-300 ${selectedId ? 'bg-theme-accent/15 border-theme-accent/40 shadow-[inset_0_0_30px_rgba(79,70,229,0.1)]' : 'bg-theme-side/50 border-theme'}`}>
+          <div className={`flex items-center gap-8 transition-all duration-500 ${!selectedElement ? 'opacity-5 grayscale pointer-events-none translate-y-2' : 'opacity-100 translate-y-0'}`}>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-colors ${selectedId ? 'text-theme-accent' : 'opacity-40'}`}>Scale Precision</span>
+              <div 
+                onPointerDown={onScaleMouseDown}
+                className={`flex items-center gap-3 bg-theme-panel/40 border px-4 py-1.5 rounded-lg cursor-ew-resize transition-all group ${isScaling ? 'border-theme-accent ring-2 ring-theme-accent/20 bg-theme-accent/5' : 'border-theme hover:border-theme-accent/50'}`}
+              >
+                <i className={`fas fa-expand-alt text-[9px] ${isScaling ? 'text-theme-accent scale-125' : 'opacity-30'} transition-all`}></i>
+                <div className="w-24 h-1 bg-theme/20 rounded-full relative overflow-hidden">
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-100 shadow-[0_0_8px_rgba(79,70,229,0.5)]" 
+                    style={{ width: `${Math.min(100, (selectedElement?.scale || 1) * 20)}%` }}
+                  ></div>
+                </div>
+                <span className="text-[10px] font-mono text-theme-accent font-black w-10 text-right">{Math.round((selectedElement?.scale || 1) * 100)}%</span>
+              </div>
             </div>
 
-            <div className="h-4 w-[1px] bg-theme/50"></div>
+            <div className={`h-8 w-[1px] transition-colors ${selectedId ? 'bg-theme-accent/30' : 'bg-theme/50'}`}></div>
 
-            <div className="flex gap-1">
-              <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) - 15 })} className="w-6 h-6 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-undo text-[8px]"></i></button>
-              <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) + 15 })} className="w-6 h-6 flex items-center justify-center border border-theme rounded hover:bg-theme-accent/10 transition-colors"><i className="fas fa-redo text-[8px]"></i></button>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-colors ${selectedId ? 'text-theme-accent' : 'opacity-40'}`}>Rotation</span>
+              <div className="flex gap-1.5 bg-theme-panel/40 p-1 rounded-lg border border-theme">
+                <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) - 15 })} className="w-7 h-7 flex items-center justify-center rounded hover:bg-theme-accent/20 transition-all active:scale-90"><i className="fas fa-undo text-[9px]"></i></button>
+                <div className="w-10 flex items-center justify-center text-[10px] font-mono font-black opacity-60">{(selectedElement?.rotation || 0)}°</div>
+                <button onClick={() => updateTransform(selectedId!, { rotation: (selectedElement?.rotation || 0) + 15 })} className="w-7 h-7 flex items-center justify-center rounded hover:bg-theme-accent/20 transition-all active:scale-90"><i className="fas fa-redo text-[9px]"></i></button>
+              </div>
             </div>
             
-            <div className="flex flex-col">
-              <span className="text-[7px] font-black uppercase opacity-30 leading-none text-center">Posição</span>
-              <span className="text-[8px] font-mono opacity-50">{Math.round(selectedElement?.x || 0)}, {Math.round(selectedElement?.y || 0)}</span>
+            <div className="flex flex-col gap-0.5 ml-auto">
+              <span className={`text-[7px] font-black uppercase leading-none transition-colors ${selectedId ? 'text-theme-accent/60' : 'opacity-30'}`}>Global Position</span>
+              <span className={`text-[10px] font-mono font-black tracking-tighter ${selectedId ? 'text-theme-accent' : 'text-theme-main opacity-60'}`}>
+                X:{Math.round(selectedElement?.x || 0)} <span className="opacity-20 mx-1">/</span> Y:{Math.round(selectedElement?.y || 0)}
+              </span>
             </div>
           </div>
+          
+          {!selectedElement && mainBatch.length > 0 && (
+            <div className="flex items-center gap-3 animate-pulse">
+              <i className="fas fa-mouse-pointer text-[10px] opacity-20"></i>
+              <span className="text-[9px] font-black uppercase opacity-20 tracking-widest text-theme-accent">Selecione uma imagem para editar</span>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-hidden relative">
@@ -149,10 +246,11 @@ const FramingTool: React.FC = () => {
             <InteractiveEditor loteImages={extraLayers} mainImage={currentMainImage ? { ...currentMainImage, ...currentTransform! } : null} frameSettings={settings} selectedId={selectedId} onSelect={setSelectedId} onUpdateImage={updateTransform} zoom={zoom} />
           </div>
           
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-theme-side/90 border border-theme py-1.5 px-6 rounded-full shadow-2xl backdrop-blur-md">
+          {/* ZOOM BAR GLASS */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-theme-side/90 border border-theme/40 py-1.5 px-6 rounded-full shadow-2xl backdrop-blur-md z-50">
             <div className="flex items-center gap-3 pr-6 border-r border-theme/50">
               <i className="fas fa-search text-[10px] opacity-20"></i>
-              <input type="range" min="0.05" max="2" step="0.05" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} className="w-24 h-1 bg-theme-accent/10 rounded-lg appearance-none cursor-pointer accent-theme-accent" />
+              <input type="range" min="0.05" max="2" step="0.01" value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} className="w-40 h-1 bg-theme-accent/10 rounded-lg appearance-none cursor-pointer accent-theme-accent" />
               <span className="text-[9px] font-mono opacity-40 min-w-[25px]">{Math.round(zoom * 100)}%</span>
             </div>
             <div className="flex items-center gap-4">
@@ -196,6 +294,10 @@ const FramingTool: React.FC = () => {
             ) : (
               extraLayers.map((img) => (
                 <div key={img.id} onClick={() => setSelectedId(img.id)} className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer group ${selectedId === img.id ? 'border-theme-accent bg-theme-accent/10' : 'border-transparent opacity-60'}`}>
+                  {/* BOTÃO DE VISIBILIDADE */}
+                  <button onClick={(e) => { e.stopPropagation(); toggleVisibility(img.id); }} className="p-1 hover:text-theme-accent transition-all">
+                    <i className={`fas ${img.visible === false ? 'fa-eye-slash opacity-40' : 'fa-eye'}`}></i>
+                  </button>
                   <img src={img.previewUrl} className="w-7 h-7 rounded object-cover border border-theme" />
                   <span className="text-[9px] font-bold truncate flex-1">{img.file.name}</span>
                   <button onClick={(e) => { e.stopPropagation(); removeExtraLayer(img.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all">
@@ -211,14 +313,14 @@ const FramingTool: React.FC = () => {
       <input type="file" multiple accept="image/*" className="hidden" ref={mainFileInputRef} onChange={(e) => {
         if (e.target.files) (Array.from(e.target.files) as File[]).forEach(file => {
           const img = new Image(); const url = URL.createObjectURL(file);
-          img.onload = () => setMainBatch(prev => [...prev, { id: uuidv4(), file, previewUrl: url, width: img.width, height: img.height, aspectRatio: img.width / img.height }]);
+          img.onload = () => setMainBatch(prev => [...prev, { id: uuidv4(), file, previewUrl: url, width: img.width, height: img.height, aspectRatio: img.width / img.height, visible: true }]);
           img.src = url;
         });
       }} />
       <input type="file" multiple accept="image/*" className="hidden" ref={extraFileInputRef} onChange={(e) => {
         if (e.target.files) (Array.from(e.target.files) as File[]).forEach(file => {
           const img = new Image(); const url = URL.createObjectURL(file);
-          img.onload = () => setExtraLayers(prev => [...prev, { id: uuidv4(), file, previewUrl: url, width: img.width, height: img.height, aspectRatio: img.width / img.height, x: 100, y: 100, scale: 0.15, rotation: 0 }]);
+          img.onload = () => setExtraLayers(prev => [...prev, { id: uuidv4(), file, previewUrl: url, width: img.width, height: img.height, aspectRatio: img.width / img.height, x: 100, y: 100, scale: 0.15, rotation: 0, visible: true }]);
           img.src = url;
         });
       }} />

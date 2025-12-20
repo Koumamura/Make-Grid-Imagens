@@ -50,12 +50,10 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !selectedId) return;
 
-    // Cancela qualquer frame pendente para evitar acúmulo
     if (dragInfo.current.animationFrameId) {
       cancelAnimationFrame(dragInfo.current.animationFrameId);
     }
 
-    // Agenda a atualização para o próximo frame de renderização do navegador
     dragInfo.current.animationFrameId = requestAnimationFrame(() => {
       const dx = e.clientX - dragInfo.current.startX;
       const dy = e.clientY - dragInfo.current.startY;
@@ -74,6 +72,22 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
     setIsDragging(false);
   }, []);
 
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (!selectedId) return;
+    e.preventDefault();
+
+    const element = selectedId === 'main' 
+      ? mainImage 
+      : loteImages.find(img => img.id === selectedId);
+
+    if (element) {
+      const delta = e.deltaY > 0 ? -0.02 : 0.02;
+      const currentScale = (element as any).scale || 1;
+      const newScale = Math.max(0.01, Math.min(10, currentScale + delta));
+      onUpdateImage(selectedId, { scale: newScale });
+    }
+  }, [selectedId, mainImage, loteImages, onUpdateImage]);
+
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -85,10 +99,27 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+    }
+    return () => {
+      if (container) container.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleWheel]);
+
+  const SelectionOverlay = ({ isActive }: { isActive: boolean }) => (
+    isActive ? (
+      <div className="absolute inset-[-2px] border-2 border-dashed border-theme-accent rounded shadow-[0_0_15px_rgba(79,70,229,0.3)] z-50 pointer-events-none">
+      </div>
+    ) : null
+  );
+
   return (
     <div 
       ref={containerRef}
-      className="relative shadow-2xl overflow-hidden border border-theme bg-theme-panel transition-all duration-300"
+      className="relative shadow-2xl border border-theme bg-theme-panel transition-[width,height] duration-300 ease-out"
       style={{ 
         width: frameSettings.canvasWidth * zoom, 
         height: frameSettings.canvasHeight * zoom,
@@ -99,32 +130,28 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
       }}
       onMouseDown={() => onSelect(null)}
     >
-      {/* Camada 1: Imagem Principal do Lote */}
-      {mainImage && (
+      {mainImage && mainImage.visible !== false && (
         <div
-          className={`absolute cursor-move ${selectedId === 'main' ? 'ring-2 ring-theme-accent shadow-2xl z-30' : 'z-10 opacity-80'}`}
+          className={`absolute cursor-move transition-opacity duration-300 ${selectedId === 'main' ? 'z-30 opacity-100' : 'z-10 opacity-70'}`}
           style={{
             left: mainImage.x * zoom,
             top: mainImage.y * zoom,
             width: (mainImage.width * mainImage.scale) * zoom,
             transform: `rotate(${mainImage.rotation}deg)`,
             pointerEvents: 'auto',
-            willChange: 'transform, left, top' // Dica para o navegador otimizar via GPU
+            willChange: 'transform, left, top'
           }}
           onMouseDown={(e) => handleMouseDown(e, 'main', mainImage.x, mainImage.y)}
         >
           <img src={mainImage.previewUrl} className="w-full h-auto pointer-events-none select-none" />
-          {selectedId === 'main' && (
-             <div className="absolute inset-0 border border-theme-accent/50 pointer-events-none"></div>
-          )}
+          <SelectionOverlay isActive={selectedId === 'main'} />
         </div>
       )}
 
-      {/* Camada 2: Elementos Extras */}
-      {loteImages.map((img) => (
+      {loteImages.map((img) => img.visible !== false && (
         <div
           key={img.id}
-          className={`absolute cursor-move ${selectedId === img.id ? 'ring-2 ring-theme-accent shadow-2xl z-40' : 'z-20 opacity-80'}`}
+          className={`absolute cursor-move transition-opacity duration-300 ${selectedId === img.id ? 'z-40 opacity-100' : 'z-20 opacity-70'}`}
           style={{
             left: (img.x || 0) * zoom,
             top: (img.y || 0) * zoom,
@@ -136,15 +163,12 @@ const InteractiveEditor: React.FC<InteractiveEditorProps> = ({
           onMouseDown={(e) => handleMouseDown(e, img.id, img.x || 0, img.y || 0)}
         >
           <img src={img.previewUrl} className="w-full h-auto pointer-events-none select-none" />
-          {selectedId === img.id && (
-             <div className="absolute inset-0 border border-theme-accent/50 pointer-events-none"></div>
-          )}
+          <SelectionOverlay isActive={selectedId === img.id} />
         </div>
       ))}
 
-      {/* Camada 3: Moldura (Sempre no Topo) */}
       <div 
-        className="absolute inset-0 pointer-events-none z-[100]"
+        className="absolute inset-0 pointer-events-none z-[100] transition-all duration-300"
         style={{
           border: frameSettings.frameImageUrl ? 'none' : `${frameSettings.borderWidth * zoom}px solid ${frameSettings.borderColor}`,
           borderRadius: `${frameSettings.borderRadius * zoom}px`,
